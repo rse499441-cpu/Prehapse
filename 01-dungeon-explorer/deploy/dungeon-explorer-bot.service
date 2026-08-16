@@ -1,0 +1,17 @@
+[Unit]
+Description=Dungeon Explorer Discord Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/dungeon-explorer-bot
+EnvironmentFile=/opt/dungeon-explorer-bot/.env
+ExecStart=/opt/dungeon-explorer-bot/.venv/bin/python -u bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

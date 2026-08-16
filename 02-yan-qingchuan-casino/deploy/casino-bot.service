@@ -1,0 +1,18 @@
+[Unit]
+Description=Yan Qingchuan Casino Bot
+After=network-online.target dungeon-explorer-bot.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=discordbot
+Group=discordbot
+WorkingDirectory=/opt/casino-bot
+EnvironmentFile=/opt/casino-bot/.env
+ExecStart=/opt/xiaojiang-chat-bot/.venv/bin/python /opt/casino-bot/casino_bot.py
+Restart=always
+RestartSec=8
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
