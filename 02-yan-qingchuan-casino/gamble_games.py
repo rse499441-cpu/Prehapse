@@ -25,6 +25,11 @@ def legal_dice_bid(quantity: int, face: int, previous_quantity: int, previous_fa
     return quantity > previous_quantity or (quantity == previous_quantity and face > previous_face)
 
 
+def dice_bid_holds(actual: int, quantity: int) -> bool:
+    """Return whether a revealed dice total satisfies the announced quantity."""
+    return actual >= quantity
+
+
 class SharedGoldWallet:
     def __init__(self, path: Path) -> None:
         self.path, self.lock = path, asyncio.Lock()
@@ -594,7 +599,13 @@ class DiceBluffGame(OwnedView):
         expected_total = own_support + 5 * (2 / 6)
         challenge_chance = 0.68 if self.quantity > expected_total else 0.18
         if (self.quantity == 10 and self.face == 6) or random.random() < challenge_chance:
-            await self.settle(interaction, False, f"晏青川开盅。实际只有 **{actual} 个 {self.face}**，你叫高了。")
+            bid_holds = dice_bid_holds(actual, self.quantity)
+            verdict = "这句叫点是真的。" if bid_holds else "你叫高了。"
+            await self.settle(
+                interaction,
+                bid_holds,
+                f"晏青川开盅。实际共有 **{actual} 个 {self.face}**，{verdict}",
+            )
             return
         if self.face < 6 and random.random() < 0.45:
             self.face += 1
@@ -621,7 +632,7 @@ class DiceBluffGame(OwnedView):
     @discord.ui.button(label="开盅", emoji="💥", style=discord.ButtonStyle.danger, row=2)
     async def challenge(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         actual = sum(value in (1, self.face) for value in self.player + self.dealer)
-        won = actual < self.quantity
+        won = not dice_bid_holds(actual, self.quantity)
         await self.settle(interaction, won, f"开盅！实际共有 **{actual} 个 {self.face}**。{'晏先生这次说了大话。' if won else '这句叫点是真的。'}")
 
     @discord.ui.button(label="加倍赌注", emoji="🪙", style=discord.ButtonStyle.success, row=2)
