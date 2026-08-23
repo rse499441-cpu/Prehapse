@@ -122,7 +122,7 @@ class PlayerStore:
                 gold_delta = player.gold - loaded_gold
                 crystal_delta = player.crystals - loaded_crystals
                 conn.execute(
-                    "UPDATE shared_wallets SET gold=MAX(0, gold+?), "
+                    "UPDATE shared_wallets SET gold=gold+?, "
                     "crystals=MAX(0, crystals+?) WHERE user_id=?",
                     (gold_delta, crystal_delta, player.user_id),
                 )
