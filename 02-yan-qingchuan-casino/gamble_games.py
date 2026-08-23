@@ -36,8 +36,9 @@ def streak_bonus_rate(streak: int) -> int:
 
 
 def scaled_win_profit(stake: int, original_profit: int, streak: int) -> int:
-    """Halve the game's original profit, then add the current streak reward."""
-    base_profit = max(0, original_profit) * BASE_WIN_PROFIT_RATE // 100
+    """Use half profit before a streak tier, otherwise full profit plus its bonus."""
+    base_rate = 100 if streak_bonus_rate(streak) else BASE_WIN_PROFIT_RATE
+    base_profit = max(0, original_profit) * base_rate // 100
     streak_bonus = max(0, stake) * streak_bonus_rate(streak) // 100
     return base_profit + streak_bonus
 
@@ -916,3 +917,4 @@ def panel_embed(avatar_url: str | None = None) -> discord.Embed:
     if avatar_url: result.set_thumbnail(url=avatar_url)
     result.set_footer(text="晏青川 · 愿赌服输")
     return result
+
