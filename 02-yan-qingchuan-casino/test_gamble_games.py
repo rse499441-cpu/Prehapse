@@ -4,12 +4,29 @@ from __future__ import annotations
 import unittest
 
 from gamble_games import (
+    BET_OPTIONS,
+    HIGH_LOW_LIMITS,
+    MAX_ROUND_STAKE,
     apply_loss_collection,
     dice_bid_holds,
     loss_penalty,
     scaled_win_profit,
     streak_bonus_rate,
 )
+
+
+class WagerLimitTests(unittest.TestCase):
+    def test_dice_and_blackjack_round_limit_is_raised(self) -> None:
+        self.assertEqual(MAX_ROUND_STAKE, 5000)
+
+    def test_large_quick_wager_options_are_available(self) -> None:
+        for amount in (1000, 3000, 5000):
+            self.assertIn(amount, BET_OPTIONS)
+
+    def test_high_low_limits_scale_by_table(self) -> None:
+        self.assertEqual(HIGH_LOW_LIMITS[1][1], 200)
+        self.assertEqual(HIGH_LOW_LIMITS[3][1], 500)
+        self.assertEqual(HIGH_LOW_LIMITS[5][1], 1700)
 
 
 class DiceBidHoldsTests(unittest.TestCase):
