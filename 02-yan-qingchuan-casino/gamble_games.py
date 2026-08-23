@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import random
 import sqlite3
 import traceback
@@ -13,7 +14,7 @@ from casino_cards import render_card_groups, render_cards, render_dice, render_y
 
 BET_OPTIONS = (10, 50, 100, 500)
 MAX_ROUND_STAKE = 3000
-MAX_ROUND_PROFIT = 3000
+BASE_WIN_PROFIT_RATE = 50
 SUITS = ("spades", "hearts", "diamonds", "clubs")
 SUIT_MARKS = {"spades": "♠", "hearts": "♥", "diamonds": "♦", "clubs": "♣"}
 RANK_NAMES = {11: "J", 12: "Q", 13: "K", 14: "A"}
@@ -28,6 +29,52 @@ def legal_dice_bid(quantity: int, face: int, previous_quantity: int, previous_fa
 def dice_bid_holds(actual: int, quantity: int) -> bool:
     """Return whether a revealed dice total satisfies the announced quantity."""
     return actual >= quantity
+
+
+def streak_bonus_rate(streak: int) -> int:
+    return 100 if streak >= 7 else 80 if streak >= 5 else 30 if streak >= 3 else 0
+
+
+def scaled_win_profit(stake: int, original_profit: int, streak: int) -> int:
+    """Halve the game's original profit, then add the current streak reward."""
+    base_profit = max(0, original_profit) * BASE_WIN_PROFIT_RATE // 100
+    streak_bonus = max(0, stake) * streak_bonus_rate(streak) // 100
+    return base_profit + streak_bonus
+
+
+def loss_penalty(stake: int, streak: int) -> int:
+    """Return the extra charge applied after the up-front stake has been lost."""
+    return max(0, stake) * streak_bonus_rate(streak) // 100
+
+
+def apply_loss_collection(
+    gold: int,
+    stored_gold: int,
+    amount: int,
+) -> tuple[int, int, int, int, int]:
+    """Pay a loss from carried gold, then savings, then create wallet debt."""
+    remaining = max(0, amount)
+    wallet_paid = min(max(0, gold), remaining)
+    remaining -= wallet_paid
+    stored_paid = min(max(0, stored_gold), remaining)
+    remaining -= stored_paid
+    debt_added = remaining
+    return (
+        gold - wallet_paid - debt_added,
+        stored_gold - stored_paid,
+        wallet_paid,
+        stored_paid,
+        debt_added,
+    )
+
+
+def loss_collection_note(stored_paid: int, debt_added: int) -> str:
+    notes = []
+    if stored_paid:
+        notes.append(f"已从储值积蓄偿还 🏦 **{stored_paid}**")
+    if debt_added:
+        notes.append(f"新增负债 🧾 **{debt_added}**")
+    return f"｜{'｜'.join(notes)}" if notes else ""
 
 
 class SharedGoldWallet:
@@ -64,22 +111,98 @@ class SharedGoldWallet:
                 conn.commit()
                 return int(balance)
 
-    async def update_streak(self, user_id: int, game: str, result: str) -> int:
+    @staticmethod
+    def _ensure_streak_table(conn: sqlite3.Connection) -> None:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS casino_streaks ("
+            "user_id INTEGER NOT NULL, game TEXT NOT NULL, "
+            "streak INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id, game))"
+        )
+
+    async def record_result(self, user_id: int, game: str, result: str) -> tuple[int, int]:
         async with self.lock:
             with closing(sqlite3.connect(self.path, timeout=10)) as conn:
-                conn.execute("CREATE TABLE IF NOT EXISTS casino_streaks (user_id INTEGER NOT NULL, game TEXT NOT NULL, streak INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(user_id, game))")
-                conn.execute("INSERT OR IGNORE INTO casino_streaks(user_id, game, streak) VALUES (?, ?, 0)", (user_id, game))
-                if result == "win":
-                    conn.execute("UPDATE casino_streaks SET streak=streak+1 WHERE user_id=? AND game=?", (user_id, game))
-                elif result == "loss":
-                    conn.execute("UPDATE casino_streaks SET streak=0 WHERE user_id=? AND game=?", (user_id, game))
-                streak = conn.execute("SELECT streak FROM casino_streaks WHERE user_id=? AND game=?", (user_id, game)).fetchone()[0]
+                conn.execute("BEGIN IMMEDIATE")
+                self._ensure_streak_table(conn)
+                conn.execute(
+                    "INSERT OR IGNORE INTO casino_streaks(user_id, game, streak) VALUES (?, ?, 0)",
+                    (user_id, game),
+                )
+                previous = int(conn.execute(
+                    "SELECT streak FROM casino_streaks WHERE user_id=? AND game=?",
+                    (user_id, game),
+                ).fetchone()[0])
+                current = previous + 1 if result == "win" else 0 if result == "loss" else previous
+                conn.execute(
+                    "UPDATE casino_streaks SET streak=? WHERE user_id=? AND game=?",
+                    (current, user_id, game),
+                )
                 conn.commit()
-                return int(streak)
+                return previous, current
 
+    async def reset_streak(self, user_id: int, game: str) -> int:
+        async with self.lock:
+            with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                self._ensure_streak_table(conn)
+                conn.execute(
+                    "INSERT OR IGNORE INTO casino_streaks(user_id, game, streak) VALUES (?, ?, 0)",
+                    (user_id, game),
+                )
+                previous = int(conn.execute(
+                    "SELECT streak FROM casino_streaks WHERE user_id=? AND game=?",
+                    (user_id, game),
+                ).fetchone()[0])
+                conn.execute(
+                    "UPDATE casino_streaks SET streak=0 WHERE user_id=? AND game=?",
+                    (user_id, game),
+                )
+                conn.commit()
+                return previous
 
-def streak_bonus_rate(streak: int) -> int:
-    return 30 if streak >= 7 else 20 if streak >= 5 else 10 if streak >= 3 else 0
+    async def collect_loss_penalty(self, user_id: int, amount: int) -> tuple[int, int, int]:
+        async with self.lock:
+            with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                wallet_row = conn.execute(
+                    "SELECT gold FROM shared_wallets WHERE user_id=?",
+                    (user_id,),
+                ).fetchone()
+                gold = int(wallet_row[0]) if wallet_row else 0
+                state_row = conn.execute(
+                    "SELECT state FROM players WHERE user_id=?",
+                    (user_id,),
+                ).fetchone()
+                state = {}
+                if state_row:
+                    try:
+                        state = json.loads(state_row[0])
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        state = {}
+                stored_gold = max(0, int(state.get("stored_gold", 0)))
+                new_gold, new_stored, _, stored_paid, debt_added = apply_loss_collection(
+                    gold,
+                    stored_gold,
+                    amount,
+                )
+                if wallet_row is None:
+                    conn.execute(
+                        "INSERT INTO shared_wallets(user_id, gold, crystals) VALUES (?, ?, 0)",
+                        (user_id, new_gold),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE shared_wallets SET gold=? WHERE user_id=?",
+                        (new_gold, user_id),
+                    )
+                if state_row and new_stored != stored_gold:
+                    state["stored_gold"] = new_stored
+                    conn.execute(
+                        "UPDATE players SET state=? WHERE user_id=?",
+                        (json.dumps(state, ensure_ascii=False), user_id),
+                    )
+                conn.commit()
+                return new_gold, stored_paid, debt_added
 
 
 def embed(title: str, text: str, colour: int = 0x6B1726) -> discord.Embed:
@@ -175,6 +298,8 @@ class CustomWagerModal(discord.ui.Modal, title="设置下注金额"):
 
 
 class WagerTable(OwnedView):
+    game_key = ""
+
     def __init__(self, owner_id: int, wallet: SharedGoldWallet, *, min_bet: int = 1, max_bet: int | None = MAX_ROUND_STAKE, bet_options: tuple[int, ...] = BET_OPTIONS) -> None:
         super().__init__(owner_id)
         self.wallet, self.bet = wallet, 10
@@ -187,6 +312,17 @@ class WagerTable(OwnedView):
     @discord.ui.button(label="自定义下注", emoji="✍️", style=discord.ButtonStyle.secondary, row=1)
     async def custom_bet(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await interaction.response.send_modal(CustomWagerModal(self))
+
+    @discord.ui.button(label="连胜归零", emoji="🧹", style=discord.ButtonStyle.secondary, row=1)
+    async def clear_streak(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
+        if getattr(self, "bet_reserved", False):
+            await interaction.response.send_message("本局已经开始，结算后才能手动清零连胜。", ephemeral=True)
+            return
+        previous = await self.wallet.reset_streak(self.owner_id, self.game_key)
+        await interaction.response.send_message(
+            f"已将本玩法连胜从 **{previous}** 手动归零。",
+            ephemeral=True,
+        )
 
     async def reserve(self, interaction: discord.Interaction) -> bool:
         if await self.wallet.place_bet(self.owner_id, self.bet) is not None:
@@ -237,6 +373,8 @@ class HighLowModeView(OwnedView):
 
 
 class HighLowTable(WagerTable):
+    game_key = "highlow"
+
     def __init__(self, owner_id: int, wallet: SharedGoldWallet, blind: bool, target_wins: int = 1) -> None:
         if target_wins == 5:
             super().__init__(owner_id, wallet, min_bet=301, max_bet=1000, bet_options=(301, 500, 800, 1000))
@@ -257,7 +395,7 @@ class HighLowTable(WagerTable):
 
     def table_embed(self) -> discord.Embed:
         mode = "盲赌" if self.blind else "明赌"
-        payout = "2:1" if self.blind else "1:1"
+        payout = "1:1（原赔率利润的 50%）" if self.blind else "0.5:1（原赔率利润的 50%）"
         challenge = f"{self.target_wins} 连胜局｜当前 **{self.streak}/{self.target_wins}**" if self.target_wins > 1 else "普通单局"
         rule = f"必须连续赢满 {self.target_wins} 局才结算；每局开牌都会保留在牌路中，途中输一局便失去整笔本金。" if self.target_wins > 1 else "一局定胜负。"
         result = embed("比大小｜下注", f"模式：**{mode}**｜当前下注：🪙 **{self.bet}**｜{challenge}｜净赢赔率：**{payout}**\n\n{rule}\n\n{'你的牌仍然盖着。' if self.blind else '你已经看过自己的牌。'}现在可以改注，再选择比大或比小。")
@@ -281,18 +419,37 @@ class HighLowTable(WagerTable):
         if won:
             self.streak += 1
         completed = won and (not high_stakes or self.streak >= self.target_wins)
-        payout = self.bet * (3 if self.blind else 2)
-        balance = await self.wallet.credit(self.owner_id, payout) if completed else await self.wallet.balance(self.owner_id)
         continuing = high_stakes and won and not completed
+        balance = await self.wallet.balance(self.owner_id)
         if continuing:
             note = f"本局获胜，连胜 **{self.streak}/{self.target_wins}**。本金与奖金仍在桌上；下方第三张是下一局你的牌。"
             self.player = (random.choice(SUITS), random.randint(2, 14))
         elif completed:
-            note = f"{f'{self.target_wins} 连胜达成！' if high_stakes else ''}净赢 🪙 **{self.bet * (2 if self.blind else 1)}**｜余额 🪙 **{balance}**"
+            _, casino_streak = await self.wallet.record_result(self.owner_id, self.game_key, "win")
+            original_profit = self.bet * (2 if self.blind else 1)
+            profit = scaled_win_profit(self.bet, original_profit, casino_streak)
+            rate = streak_bonus_rate(casino_streak)
+            balance = await self.wallet.credit(self.owner_id, self.bet + profit)
+            note = (
+                f"{f'{self.target_wins} 连胜达成！' if high_stakes else ''}"
+                f"净赢 🪙 **{profit}**｜累计连胜 **{casino_streak}**｜"
+                f"连胜加成 **{rate}%**｜余额 🪙 **{balance}**"
+            )
             for item in self.children: item.disabled = True
         else:
+            previous_streak, _ = await self.wallet.record_result(self.owner_id, self.game_key, "loss")
+            rate = streak_bonus_rate(previous_streak)
+            penalty = loss_penalty(self.bet, previous_streak)
+            balance, stored_paid, debt_added = await self.wallet.collect_loss_penalty(
+                self.owner_id,
+                penalty,
+            )
             reason = "双方同点，按规则由庄家获胜。" if tied else ("连胜中断。" if high_stakes else "本局未押中。")
-            note = f"{reason}失去整笔下注 🪙 **{self.bet}**｜余额 🪙 **{balance}**"
+            note = (
+                f"{reason}共失去 🪙 **{self.bet + penalty}**｜"
+                f"原连胜 **{previous_streak}** 已归零｜追加扣款 **{rate}%**"
+                f"{loss_collection_note(stored_paid, debt_added)}｜余额 🪙 **{balance}**"
+            )
             for item in self.children: item.disabled = True
         if not continuing:
             self.add_item(ReplayButton(self.owner_id, self.wallet, "highlow"))
@@ -415,19 +572,45 @@ class BlackjackGame(OwnedView):
             lines.append(f"手牌 {index + 1}：**{value} 点｜{label}**")
         total_stake = sum(self.bets)
         outcome = "win" if payouts > total_stake else "push" if payouts == total_stake else "loss"
-        streak = await self.wallet.update_streak(self.owner_id, "blackjack", outcome)
-        rate = streak_bonus_rate(streak)
-        bonus = max(0, payouts - total_stake) * rate // 100
-        payouts += bonus
-        payouts = min(payouts, total_stake + MAX_ROUND_PROFIT)
-        balance = await self.wallet.credit(self.owner_id, payouts) if payouts else await self.wallet.balance(self.owner_id)
+        previous_streak, streak = await self.wallet.record_result(self.owner_id, "blackjack", outcome)
+        stored_paid = debt_added = penalty = 0
+        if outcome == "win":
+            original_profit = payouts - total_stake
+            profit = scaled_win_profit(total_stake, original_profit, streak)
+            rate = streak_bonus_rate(streak)
+            bonus = total_stake * rate // 100
+            payouts = total_stake + profit
+            balance = await self.wallet.credit(self.owner_id, payouts)
+            streak_note = (
+                f"\n连胜：**{streak}**｜基础利润按原赔率的 **50%** 结算｜"
+                f"连胜加成：**{rate}%**"
+                + (f"｜连胜奖励 🪙 **{bonus}**" if bonus else "")
+            )
+        elif outcome == "push":
+            rate = streak_bonus_rate(streak)
+            balance = await self.wallet.credit(self.owner_id, payouts)
+            streak_note = f"\n平局不断档｜当前连胜：**{streak}**"
+        else:
+            if payouts:
+                await self.wallet.credit(self.owner_id, payouts)
+            rate = streak_bonus_rate(previous_streak)
+            penalty = loss_penalty(total_stake, previous_streak)
+            balance, stored_paid, debt_added = await self.wallet.collect_loss_penalty(
+                self.owner_id,
+                penalty,
+            )
+            net_loss = total_stake - payouts + penalty
+            streak_note = (
+                f"\n本局净损失：🪙 **{net_loss}**｜原连胜 **{previous_streak}** 已归零｜"
+                f"追加扣款：**{rate}%**"
+                f"{loss_collection_note(stored_paid, debt_added)}"
+            )
         for item in self.children:
             item.disabled = True
         self.add_item(ReplayButton(self.owner_id, self.wallet, "blackjack"))
-        streak_note = f"\n连胜：**{streak}**｜奖励加成：**{rate}%**" + (f"｜额外 🪙 **{bonus}**" if bonus else "")
         result = self.game_embed(True, "\n\n" + "\n".join(lines) + streak_note + f"\n\n余额：🪙 **{balance}**")
-        result.colour = 0x57F287 if payouts > sum(self.bets) else 0xFEE75C if payouts == sum(self.bets) else 0xED4245
-        await interaction.response.edit_message(embed=result, view=self, attachments=[self.picture(True, "lose" if payouts > sum(self.bets) else "neutral")])
+        result.colour = 0x57F287 if outcome == "win" else 0xFEE75C if outcome == "push" else 0xED4245
+        await interaction.response.edit_message(embed=result, view=self, attachments=[self.picture(True, "lose" if outcome == "win" else "neutral")])
 
     @discord.ui.button(label="要牌", emoji="➕", style=discord.ButtonStyle.primary)
     async def hit(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
@@ -501,6 +684,8 @@ class BlackjackGame(OwnedView):
 
 
 class BlackjackTable(WagerTable):
+    game_key = "blackjack"
+
     def table_embed(self) -> discord.Embed:
         return embed(
             "Blackjack｜入局",
@@ -517,9 +702,9 @@ class BlackjackTable(WagerTable):
             "• **分牌**：起手两张点数相同，可拆成两手；第二手要再押一份相同赌注。\n"
             "• **保险**：只有庄家亮出 A 时出现。你额外押原注的一半，赌庄家的暗牌是 10/J/Q/K、正好组成 Blackjack；猜中保险按 2:1 净赢，猜错保险金归庄家，原来的牌局照常继续。**保险不是保你这局不输。**\n\n"
             "**怎么结算**\n"
-            "普通胜利净赢 1:1｜起手两张正好 21 点净赢 3:2｜同点退回本金｜庄家 17 点必须停牌。\n"
-            "单局累计投入与净赚均不超过 3000 金币。"
-            "\n\n连续获胜奖励：3 连胜 +10%｜5 连胜 +20%｜7 连胜起 +30%；输掉后连胜归零，平局不断档。",
+            "普通胜利原赔率 1:1｜起手两张正好 21 点原赔率 3:2｜同点退回本金｜庄家 17 点必须停牌。\n"
+            "实际基础净利润按原赔率的 50% 结算。\n"
+            "\n\n连续获胜奖励：3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%；失败会按失败前档位追加扣款并归零，平局不断档。",
         )
 
     @discord.ui.button(label="发牌", style=discord.ButtonStyle.success, row=1)
@@ -583,13 +768,33 @@ class DiceBluffGame(OwnedView):
     async def settle(self, interaction: discord.Interaction, challenger_wins: bool, note: str) -> None:
         self.done = True
         for item in self.children: item.disabled = True
-        streak = await self.wallet.update_streak(self.owner_id, "dice", "win" if challenger_wins else "loss")
-        rate = streak_bonus_rate(streak)
-        bonus = min(self.bet, MAX_ROUND_PROFIT) * rate // 100 if challenger_wins else 0
-        payout = self.bet + min(self.bet + bonus, MAX_ROUND_PROFIT)
-        balance = await self.wallet.credit(self.owner_id, payout) if challenger_wins else await self.wallet.balance(self.owner_id)
+        previous_streak, streak = await self.wallet.record_result(
+            self.owner_id,
+            "dice",
+            "win" if challenger_wins else "loss",
+        )
+        if challenger_wins:
+            rate = streak_bonus_rate(streak)
+            profit = scaled_win_profit(self.bet, self.bet, streak)
+            bonus = self.bet * rate // 100
+            balance = await self.wallet.credit(self.owner_id, self.bet + profit)
+            settlement = (
+                f"净赢 🪙 **{profit}**｜连胜 **{streak}**｜加成 **{rate}%**"
+                + (f"（连胜奖励 🪙 {bonus}）" if bonus else "")
+            )
+        else:
+            rate = streak_bonus_rate(previous_streak)
+            penalty = loss_penalty(self.bet, previous_streak)
+            balance, stored_paid, debt_added = await self.wallet.collect_loss_penalty(
+                self.owner_id,
+                penalty,
+            )
+            settlement = (
+                f"共失去 🪙 **{self.bet + penalty}**｜原连胜 **{previous_streak}** 已归零｜"
+                f"追加扣款 **{rate}%**{loss_collection_note(stored_paid, debt_added)}"
+            )
         self.add_item(ReplayButton(self.owner_id, self.wallet, "dice"))
-        result = self.game_embed(f"{note}\n{'赢得' if challenger_wins else '失去'} 🪙 **{self.bet}**｜连胜 **{streak}**｜加成 **{rate}%**{f'（额外 🪙 {bonus}）' if bonus else ''}｜余额 🪙 **{balance}**")
+        result = self.game_embed(f"{note}\n{settlement}｜余额 🪙 **{balance}**")
         result.colour = 0x57F287 if challenger_wins else 0xED4245
         await interaction.response.edit_message(embed=result, view=self, attachments=[self.picture(True, "lose" if challenger_wins else "neutral")])
 
@@ -648,8 +853,10 @@ class DiceBluffGame(OwnedView):
 
 
 class DiceBluffTable(WagerTable):
+    game_key = "dice"
+
     def table_embed(self) -> discord.Embed:
-        return embed("骰子吹牛｜入局", f"下注：🪙 **{self.bet}**\n\n**新手玩法**：双方各摇五枚骰子，只看自己的五枚。叫点是猜双方十枚骰子合计有多少个某点数，例如“3 个 5”。下一口必须增加数量，或保持数量并提高点数；怀疑上一口是吹牛便开盅。\n\n**本桌带 1**：骰出的 **1 可以当作任何点数**。例如开盅数“5”时，所有 1 点和 5 点都会算作 5。\n\n连续获胜奖励：3 连胜 +10%｜5 连胜 +20%｜7 连胜起 +30%；输掉后连胜归零。")
+        return embed("骰子吹牛｜入局", f"下注：🪙 **{self.bet}**\n\n**新手玩法**：双方各摇五枚骰子，只看自己的五枚。叫点是猜双方十枚骰子合计有多少个某点数，例如“3 个 5”。下一口必须增加数量，或保持数量并提高点数；怀疑上一口是吹牛便开盅。\n\n**本桌带 1**：骰出的 **1 可以当作任何点数**。例如开盅数“5”时，所有 1 点和 5 点都会算作 5。\n\n基础净利润按原赔率的 50% 结算；3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%。失败会按失败前档位追加扣款并将连胜归零。")
 
     @discord.ui.button(label="摇骰入局", style=discord.ButtonStyle.success, row=1)
     async def start(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
@@ -675,7 +882,7 @@ class CasinoMenuView(discord.ui.View):
     async def high_low(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         view = HighLowModeView(interaction.user.id, self.wallet)
         await interaction.response.send_message(
-            embed=embed("比大小｜选择牌桌", "**新手玩法**：你与晏青川各抽一张牌，选择押自己的牌更大或更小，再同时开牌；点数从 2 到 A，A 最大。**双方同点时算庄家赢。**\n\n**普通桌**：下注 1–100 金币，一局定胜负。\n**三连桌**：下注 101–300 金币，必须连续赢三局。\n**五连桌**：下注 301–1000 金币，必须连续赢五局。\n\n连胜桌会保留每局开出的双方牌；途中输一局或双方同点，整笔下注归零。明赌先看自己的牌，净赢 1:1；盲赌不看牌，净赢 2:1。"),
+            embed=embed("比大小｜选择牌桌", "**新手玩法**：你与晏青川各抽一张牌，选择押自己的牌更大或更小，再同时开牌；点数从 2 到 A，A 最大。**双方同点时算庄家赢。**\n\n**普通桌**：下注 1–100 金币，一局定胜负。\n**三连桌**：下注 101–300 金币，必须连续赢三局。\n**五连桌**：下注 301–1000 金币，必须连续赢五局。\n\n连胜桌会保留每局开出的双方牌；途中输一局或双方同点，整笔下注归零。明赌先看自己的牌，原赔率 1:1；盲赌不看牌，原赔率 2:1。实际基础净利润按原赔率的 50% 结算，并叠加 3/5/7 连胜的 30%/80%/100% 奖励；失败按失败前档位追加扣款。"),
             view=view,
             ephemeral=True,
         )
