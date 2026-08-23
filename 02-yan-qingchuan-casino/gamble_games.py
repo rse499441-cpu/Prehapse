@@ -12,8 +12,13 @@ from pathlib import Path
 import discord
 from casino_cards import render_card_groups, render_cards, render_dice, render_yan_blackjack, render_yan_cards, render_yan_dice
 
-BET_OPTIONS = (10, 50, 100, 500)
-MAX_ROUND_STAKE = 3000
+BET_OPTIONS = (10, 50, 100, 500, 1000, 3000, 5000)
+MAX_ROUND_STAKE = 5000
+HIGH_LOW_LIMITS = {
+    1: (1, 200, (10, 50, 100, 200)),
+    3: (201, 500, (201, 300, 500)),
+    5: (501, 1700, (501, 1000, 1500, 1700)),
+}
 BASE_WIN_PROFIT_RATE = 50
 SUITS = ("spades", "hearts", "diamonds", "clubs")
 SUIT_MARKS = {"spades": "♠", "hearts": "♥", "diamonds": "♦", "clubs": "♣"}
@@ -348,27 +353,27 @@ class HighLowModeView(OwnedView):
         shown.set_image(url="attachment://table-cards.jpg")
         await interaction.response.edit_message(embed=shown, view=table, attachments=[picture])
 
-    @discord.ui.button(label="普通明赌｜1–100", style=discord.ButtonStyle.primary, row=0)
+    @discord.ui.button(label="普通明赌｜1–200", style=discord.ButtonStyle.primary, row=0)
     async def seen(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=False, target_wins=1)
 
-    @discord.ui.button(label="普通盲赌｜1–100", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="普通盲赌｜1–200", style=discord.ButtonStyle.secondary, row=0)
     async def blind(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=True, target_wins=1)
 
-    @discord.ui.button(label="三连明赌｜101–300", style=discord.ButtonStyle.success, row=1)
+    @discord.ui.button(label="三连明赌｜201–500", style=discord.ButtonStyle.success, row=1)
     async def triple_seen(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=False, target_wins=3)
 
-    @discord.ui.button(label="三连盲赌｜101–300", style=discord.ButtonStyle.danger, row=1)
+    @discord.ui.button(label="三连盲赌｜201–500", style=discord.ButtonStyle.danger, row=1)
     async def triple_blind(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=True, target_wins=3)
 
-    @discord.ui.button(label="五连明赌｜301–1000", style=discord.ButtonStyle.success, row=2)
+    @discord.ui.button(label="五连明赌｜501–1700", style=discord.ButtonStyle.success, row=2)
     async def five_seen(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=False, target_wins=5)
 
-    @discord.ui.button(label="五连盲赌｜301–1000", style=discord.ButtonStyle.danger, row=2)
+    @discord.ui.button(label="五连盲赌｜501–1700", style=discord.ButtonStyle.danger, row=2)
     async def five_blind(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         await self.open_table(interaction, blind=True, target_wins=5)
 
@@ -377,12 +382,8 @@ class HighLowTable(WagerTable):
     game_key = "highlow"
 
     def __init__(self, owner_id: int, wallet: SharedGoldWallet, blind: bool, target_wins: int = 1) -> None:
-        if target_wins == 5:
-            super().__init__(owner_id, wallet, min_bet=301, max_bet=1000, bet_options=(301, 500, 800, 1000))
-        elif target_wins == 3:
-            super().__init__(owner_id, wallet, min_bet=101, max_bet=300, bet_options=(101, 200, 300))
-        else:
-            super().__init__(owner_id, wallet, max_bet=100, bet_options=(10, 50, 100))
+        min_bet, max_bet, bet_options = HIGH_LOW_LIMITS[target_wins]
+        super().__init__(owner_id, wallet, min_bet=min_bet, max_bet=max_bet, bet_options=bet_options)
         self.blind = blind
         self.target_wins = target_wins
         self.player = (random.choice(SUITS), random.randint(2, 14))
@@ -636,7 +637,7 @@ class BlackjackGame(OwnedView):
         if not await self.dealer_check(interaction): return
         wager = self.bets[self.active]
         if sum(self.bets) + wager > MAX_ROUND_STAKE:
-            await interaction.response.send_message("本局累计投入不能超过 3000 金币。", ephemeral=True)
+            await interaction.response.send_message(f"本局累计投入不能超过 {MAX_ROUND_STAKE} 金币。", ephemeral=True)
             return
         if await self.wallet.place_bet(self.owner_id, wager) is None:
             await interaction.response.send_message("金币不足，无法加倍。", ephemeral=True)
@@ -651,7 +652,7 @@ class BlackjackGame(OwnedView):
         if not await self.dealer_check(interaction): return
         wager = self.bets[self.active]
         if sum(self.bets) + wager > MAX_ROUND_STAKE:
-            await interaction.response.send_message("本局累计投入不能超过 3000 金币。", ephemeral=True)
+            await interaction.response.send_message(f"本局累计投入不能超过 {MAX_ROUND_STAKE} 金币。", ephemeral=True)
             return
         if await self.wallet.place_bet(self.owner_id, wager) is None:
             await interaction.response.send_message("金币不足，无法为第二手牌补下注。", ephemeral=True)
@@ -671,7 +672,7 @@ class BlackjackGame(OwnedView):
     async def insurance(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         stake = max(1, self.bet // 2)
         if sum(self.bets) + stake > MAX_ROUND_STAKE:
-            await interaction.response.send_message("购买保险后，本局累计投入会超过 3000 金币。", ephemeral=True)
+            await interaction.response.send_message(f"购买保险后，本局累计投入会超过 {MAX_ROUND_STAKE} 金币。", ephemeral=True)
             return
         if await self.wallet.place_bet(self.owner_id, stake) is None:
             await interaction.response.send_message("金币不足，无法购买保险。", ephemeral=True)
@@ -690,7 +691,7 @@ class BlackjackTable(WagerTable):
     def table_embed(self) -> discord.Embed:
         return embed(
             "Blackjack｜入局",
-            f"下注：🪙 **{self.bet}**\n\n"
+            f"下注：🪙 **{self.bet}**｜本局累计投入上限：🪙 **{MAX_ROUND_STAKE}**\n\n"
             "**目标：你的点数要比庄家大，但绝对不能超过 21。**\n\n"
             "**点数怎么算**\n"
             "• 2–10：牌面写多少就是多少。\n"
@@ -704,8 +705,8 @@ class BlackjackTable(WagerTable):
             "• **保险**：只有庄家亮出 A 时出现。你额外押原注的一半，赌庄家的暗牌是 10/J/Q/K、正好组成 Blackjack；猜中保险按 2:1 净赢，猜错保险金归庄家，原来的牌局照常继续。**保险不是保你这局不输。**\n\n"
             "**怎么结算**\n"
             "普通胜利原赔率 1:1｜起手两张正好 21 点原赔率 3:2｜同点退回本金｜庄家 17 点必须停牌。\n"
-            "实际基础净利润按原赔率的 50% 结算。\n"
-            "\n\n连续获胜奖励：3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%；失败会按失败前档位追加扣款并归零，平局不断档。",
+            "连胜不满 3 场时，基础净利润按原赔率的 50% 结算。\n"
+            "\n\n达到连胜档位后恢复完整原赔率净利润，并追加奖励：3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%；失败会按失败前档位追加扣款并归零，平局不断档。",
         )
 
     @discord.ui.button(label="发牌", style=discord.ButtonStyle.success, row=1)
@@ -844,7 +845,7 @@ class DiceBluffGame(OwnedView):
     @discord.ui.button(label="加倍赌注", emoji="🪙", style=discord.ButtonStyle.success, row=2)
     async def raise_stakes(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         if self.bet * 2 > MAX_ROUND_STAKE:
-            await interaction.response.send_message("本局累计投入不能超过 3000 金币。", ephemeral=True)
+            await interaction.response.send_message(f"本局累计投入不能超过 {MAX_ROUND_STAKE} 金币。", ephemeral=True)
             return
         if await self.wallet.place_bet(self.owner_id, self.bet) is None:
             await interaction.response.send_message("金币不足，无法继续加码。", ephemeral=True)
@@ -857,7 +858,7 @@ class DiceBluffTable(WagerTable):
     game_key = "dice"
 
     def table_embed(self) -> discord.Embed:
-        return embed("骰子吹牛｜入局", f"下注：🪙 **{self.bet}**\n\n**新手玩法**：双方各摇五枚骰子，只看自己的五枚。叫点是猜双方十枚骰子合计有多少个某点数，例如“3 个 5”。下一口必须增加数量，或保持数量并提高点数；怀疑上一口是吹牛便开盅。\n\n**本桌带 1**：骰出的 **1 可以当作任何点数**。例如开盅数“5”时，所有 1 点和 5 点都会算作 5。\n\n基础净利润按原赔率的 50% 结算；3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%。失败会按失败前档位追加扣款并将连胜归零。")
+        return embed("骰子吹牛｜入局", f"下注：🪙 **{self.bet}**｜本局累计投入上限：🪙 **{MAX_ROUND_STAKE}**\n\n**新手玩法**：双方各摇五枚骰子，只看自己的五枚。叫点是猜双方十枚骰子合计有多少个某点数，例如“3 个 5”。下一口必须增加数量，或保持数量并提高点数；怀疑上一口是吹牛便开盅。\n\n**本桌带 1**：骰出的 **1 可以当作任何点数**。例如开盅数“5”时，所有 1 点和 5 点都会算作 5。\n\n连胜不满 3 场时净利润按原赔率的 50% 结算；达到档位后恢复完整原赔率净利润，并追加 3 连胜 +30%｜5 连胜 +80%｜7 连胜起 +100%。失败会按失败前档位追加扣款并将连胜归零。")
 
     @discord.ui.button(label="摇骰入局", style=discord.ButtonStyle.success, row=1)
     async def start(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
@@ -883,7 +884,7 @@ class CasinoMenuView(discord.ui.View):
     async def high_low(self, interaction: discord.Interaction, _: discord.ui.Button) -> None:
         view = HighLowModeView(interaction.user.id, self.wallet)
         await interaction.response.send_message(
-            embed=embed("比大小｜选择牌桌", "**新手玩法**：你与晏青川各抽一张牌，选择押自己的牌更大或更小，再同时开牌；点数从 2 到 A，A 最大。**双方同点时算庄家赢。**\n\n**普通桌**：下注 1–100 金币，一局定胜负。\n**三连桌**：下注 101–300 金币，必须连续赢三局。\n**五连桌**：下注 301–1000 金币，必须连续赢五局。\n\n连胜桌会保留每局开出的双方牌；途中输一局或双方同点，整笔下注归零。明赌先看自己的牌，原赔率 1:1；盲赌不看牌，原赔率 2:1。实际基础净利润按原赔率的 50% 结算，并叠加 3/5/7 连胜的 30%/80%/100% 奖励；失败按失败前档位追加扣款。"),
+            embed=embed("比大小｜选择牌桌", "**新手玩法**：你与晏青川各抽一张牌，选择押自己的牌更大或更小，再同时开牌；点数从 2 到 A，A 最大。**双方同点时算庄家赢。**\n\n**普通桌**：下注 1–200 金币，一局定胜负。\n**三连桌**：下注 201–500 金币，必须连续赢三局。\n**五连桌**：下注 501–1700 金币，必须连续赢五局。\n\n连胜桌会保留每局开出的双方牌；途中输一局或双方同点，整笔下注归零。明赌先看自己的牌，原赔率 1:1；盲赌不看牌，原赔率 2:1。连胜不满 3 场时基础净利润按原赔率的 50% 结算；达到档位后恢复完整原赔率净利润，并追加 3/5/7 连胜的 30%/80%/100% 奖励。失败按失败前档位追加扣款。"),
             view=view,
             ephemeral=True,
         )
