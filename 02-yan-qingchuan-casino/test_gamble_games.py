@@ -34,10 +34,13 @@ class StreakSettlementTests(unittest.TestCase):
         self.assertEqual(scaled_win_profit(1000, 1000, 0), 500)
         self.assertEqual(scaled_win_profit(1000, 1000, 2), 500)
 
-    def test_streak_bonus_is_added_to_halved_profit(self) -> None:
-        self.assertEqual(scaled_win_profit(1000, 1000, 3), 800)
-        self.assertEqual(scaled_win_profit(1000, 1000, 5), 1300)
-        self.assertEqual(scaled_win_profit(1000, 1000, 7), 1500)
+    def test_streak_bonus_is_added_to_full_profit(self) -> None:
+        self.assertEqual(scaled_win_profit(1000, 1000, 3), 1300)
+        self.assertEqual(scaled_win_profit(1000, 1000, 5), 1800)
+        self.assertEqual(scaled_win_profit(1000, 1000, 7), 2000)
+
+    def test_streak_tier_preserves_original_game_odds(self) -> None:
+        self.assertEqual(scaled_win_profit(1000, 2000, 3), 2300)
 
     def test_loss_penalty_uses_streak_tier(self) -> None:
         self.assertEqual(loss_penalty(1000, 2), 0)
@@ -60,3 +63,4 @@ class StreakSettlementTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
