@@ -35,6 +35,7 @@ from game.daily_quests import (
     record_action as record_daily_quest_action,
     sync_daily_quests,
 )
+from school_dungeon import runtime as school_runtime
 
 load_dotenv()
 engine, store = GameEngine(), PlayerStore()
@@ -589,7 +590,10 @@ def player_panel_text(player: Player, result: GameResult | None) -> tuple[str, s
 
 class DungeonActionButton(discord.ui.Button):
     def __init__(self, action: str, label: str, emoji: str, style: discord.ButtonStyle):
-        super().__init__(label=label, emoji=emoji, style=style)
+        super().__init__(
+            label=label, emoji=emoji, style=style,
+            custom_id=f"dungeon:action:{action}",
+        )
         self.action = action
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -624,22 +628,25 @@ class DungeonActions(discord.ui.ActionRow):
         if player.pending_event in pending_buttons:
             action, label, emoji = pending_buttons[player.pending_event]
             buttons.append(DungeonActionButton(action, label, emoji, discord.ButtonStyle.success))
-        if player.pending_event in {
-            "chest", "mimic", "merchant", "fairy", "mystery",
-            "treasure_map", "trapped_beast", "wishing_well",
-        }:
-            leave_label = (
-                "不打开，悄悄离开"
-                if player.pending_event in {"chest", "mimic"}
-                else "婉拒／离开"
-            )
-            buttons.append(DungeonActionButton(
-                "decline_event",
-                leave_label,
-                "🚶",
-                discord.ButtonStyle.secondary,
-            ))
         super().__init__(*buttons[:5])
+
+
+DECLINABLE_EVENTS = {
+    "chest", "mimic", "merchant", "fairy", "mystery",
+    "treasure_map", "trapped_beast", "wishing_well",
+}
+
+
+class DungeonDeclineActions(discord.ui.ActionRow):
+    def __init__(self, player: Player):
+        leave_label = (
+            "不打开，悄悄离开"
+            if player.pending_event in {"chest", "mimic"}
+            else "婉拒／离开"
+        )
+        super().__init__(DungeonActionButton(
+            "decline_event", leave_label, "🚶", discord.ButtonStyle.secondary,
+        ))
 
 
 class DungeonUtilities(discord.ui.ActionRow):
@@ -799,8 +806,9 @@ class DungeonPanel(discord.ui.LayoutView):
         container.add_item(discord.ui.TextDisplay(status))
         container.add_item(discord.ui.Separator())
         container.add_item(DungeonActions(player))
+        if player.pending_event in DECLINABLE_EVENTS:
+            container.add_item(DungeonDeclineActions(player))
         container.add_item(DungeonUtilities(player))
-        container.add_item(DungeonQuestUtilities())
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -1001,15 +1009,27 @@ class CaveSelect(discord.ui.Select):
             custom_id="dungeon:cave_select",
             min_values=1,
             max_values=1,
-            options=[discord.SelectOption(
-                label="幽灯岩窟",
-                value="youden_cave",
-                description="幽蓝提灯照亮的古老岩窟 · 推荐 Lv.1",
-                emoji="🕯️",
-            )],
+            options=[
+                discord.SelectOption(
+                    label="地下城一｜幽灯岩窟",
+                    value="youden_cave",
+                    description="幽蓝提灯照亮的古老岩窟 · 推荐 Lv.1",
+                    emoji="🕯️",
+                ),
+                discord.SelectOption(
+                    label="地下城二｜永不下课的学园",
+                    value="endless_school",
+                    description="十科百层的异常学校 · 推荐 Lv.1",
+                    emoji="🏫",
+                ),
+            ],
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if self.values[0] == "endless_school":
+            await school_runtime.enter_school(interaction)
+            return
+        await interaction.response.defer()
         player = store.get(interaction.user.id, interaction.user.display_name)
         sync_player_fortune(player, interaction.guild_id)
         engine.ensure_floor(player)
@@ -1017,7 +1037,7 @@ class CaveSelect(discord.ui.Select):
         player.gold_storage_available = False
         store.save(player)
         result = GameResult("🕯️ 幽灯岩窟", "你站在潮湿的石阶前，岩窟深处传来微弱的铃声……")
-        await interaction.response.edit_message(
+        await interaction.edit_original_response(
             content=None,
             embed=None,
             view=DungeonPanel(interaction.user.id, player, result),
@@ -1097,11 +1117,14 @@ class ExploreEntranceButton(discord.ui.Button):
         engine.ensure_floor(player)
         store.save(player)
         embed = discord.Embed(
-            title="🕯️ 幽灯岩窟",
+            title="🗺️ 选择地下城",
             description=(
-                "笑脸幽火在洞口晃来晃去，一只史莱姆正努力躲在石头后面。\n"
-                "据说这里的宝箱都很有礼貌——至少打开之前是这样。\n\n"
-                "### 要进入洞窟探索吗？"
+                "### 🕯️ 地下城一｜幽灯岩窟\n"
+                "幽蓝提灯照亮的古老岩窟，熟悉的百层冒险仍在继续。\n\n"
+                "### 🏫 地下城二｜永不下课的学园\n"
+                "体育、艺术、生物、地理、历史、化学、物理、英语、语文与数学，"
+                "第100层的期末考试正在等你。\n\n"
+                "### 从下方菜单选择要进入的地下城"
             ),
             color=0x8B8FE8,
         )
@@ -1791,6 +1814,7 @@ async def ensure_entrance_panel() -> None:
 
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
+school_runtime.bind_runtime(bot, EntrancePanel)
 
 
 @bot.event
