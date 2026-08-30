@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .equipment import migrate_equipment_names
 from .models import Player
 
 
@@ -139,9 +140,11 @@ class PlayerStore:
                         int(state.get("merchant_charm_rules_version", 0)) >= 6
                         and int(state.get("tavern_storage_rules_version", 0)) >= 1
                         and int(state.get("crystal_charm_archive_version", 0)) >= 1
+                        and int(state.get("equipment_name_rules_version", 0)) >= 1
                     ):
                         continue
                     migrated = Player.from_dict(state)
+                    migrate_equipment_names(migrated)
                 except (TypeError, ValueError, json.JSONDecodeError):
                     continue
                 conn.execute(
@@ -176,6 +179,7 @@ class PlayerStore:
                 conn.commit()
                 wallet = (player.gold, player.crystals)
         self._load_shared_equipment(player)
+        migrate_equipment_names(player)
         player.gold = int(wallet[0])
         player.crystals = int(wallet[1])
         player.name = name
