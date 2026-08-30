@@ -68,6 +68,13 @@ ADVENTURER_ROLE_NAMES = {spec[0] for spec in ADVENTURER_ROLES.values()}
 DUNGEON_ADVENTURER_ROLE_NAME = "🗺️ 地下城冒险者"
 
 
+async def reject_tavern_service(
+    interaction: discord.Interaction,
+    service_name: str,
+) -> bool:
+    return await school_runtime.reject_tavern_service(interaction, service_name)
+
+
 def bar(value: int, maximum: int, width: int = 10) -> str:
     filled = round(width * value / maximum) if maximum else 0
     return "▰" * filled + "▱" * (width - filled)
@@ -1026,16 +1033,32 @@ class CaveSelect(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        target = (
+            school_runtime.DUNGEON_TWO_NAME
+            if self.values[0] == "endless_school"
+            else school_runtime.DUNGEON_ONE_NAME
+        )
+        active = school_runtime.active_adventure_names(
+            interaction.user.id,
+            interaction.user.display_name,
+        )
+        if active and target not in active:
+            await interaction.response.send_message(
+                f"⚔️ 你仍身处 {school_runtime.active_adventure_text(active)}，"
+                f"无法立刻进入 **{target}**。请先结束当前冒险并返回酒馆。",
+                ephemeral=True,
+            )
+            return
         if self.values[0] == "endless_school":
             await school_runtime.enter_school(interaction)
             return
-        await interaction.response.defer()
         player = store.get(interaction.user.id, interaction.user.display_name)
         sync_player_fortune(player, interaction.guild_id)
         engine.ensure_floor(player)
         player.in_adventure = True
         player.gold_storage_available = False
         store.save(player)
+        await interaction.response.defer()
         result = GameResult("🕯️ 幽灯岩窟", "你站在潮湿的石阶前，岩窟深处传来微弱的铃声……")
         await interaction.edit_original_response(
             content=None,
@@ -1149,6 +1172,8 @@ class GoldStorageModal(discord.ui.Modal):
         self.add_item(self.amount)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        if await reject_tavern_service(interaction, "储值商人"):
+            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         try:
             amount = int(str(self.amount.value).strip())
@@ -1191,6 +1216,9 @@ class GoldStorageView(discord.ui.View):
         self.add_item(GoldStorageActionButton("deposit"))
         self.add_item(GoldStorageActionButton("withdraw"))
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return not await reject_tavern_service(interaction, "储值商人")
+
 
 class GoldStorageButton(discord.ui.Button):
     def __init__(self):
@@ -1200,12 +1228,9 @@ class GoldStorageButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        player = store.get(interaction.user.id, interaction.user.display_name)
-        if player.is_adventuring:
-            await interaction.response.send_message(
-                "冒险途中无法使用储值商人，请先返回酒馆。", ephemeral=True
-            )
+        if await reject_tavern_service(interaction, "储值商人"):
             return
+        player = store.get(interaction.user.id, interaction.user.display_name)
         await interaction.response.send_message(
             "# 🏦 酒馆储值商人\n"
             "这里只保管金币，不收手续费，也不产生利息。\n\n"
@@ -1315,10 +1340,10 @@ class GoldShopPanel(discord.ui.LayoutView):
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.owner_id:
-            return True
-        await interaction.response.send_message("这不是你的金币商城面板。", ephemeral=True)
-        return False
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("这不是你的金币商城面板。", ephemeral=True)
+            return False
+        return not await reject_tavern_service(interaction, "金币商店")
 
 
 class GoldShopButton(discord.ui.Button):
@@ -1329,13 +1354,9 @@ class GoldShopButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        player = store.get(interaction.user.id, interaction.user.display_name)
-        if player.is_adventuring:
-            await interaction.response.send_message(
-                "⚔️ 冒险途中无法使用金币商城。死亡并返回酒馆后才能再次购买。",
-                ephemeral=True,
-            )
+        if await reject_tavern_service(interaction, "金币商店"):
             return
+        player = store.get(interaction.user.id, interaction.user.display_name)
         shop_image = discord.File(GOLD_SHOP_IMAGE, filename="gold-shop-banner.jpg")
         await interaction.response.send_message(
             view=GoldShopPanel(interaction.user.id, player),
@@ -1459,7 +1480,7 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             "必定获得 **优良或以上**的装备／护符。\n"
             "📊 **单次概率：优良 45%｜稀有 35%｜黄金 17%｜传说 3%**\n"
             "可选择砸 **1 次／5 次／10 次**；多次兑换的每一件奖励独立计算概率。\n"
-            "🏰 **探索途中也可以砸水晶**，不会改变当前楼层、战斗或探索进度。\n"
+            "🍺 **水晶兑换仅限酒馆内使用**；冒险途中请先完成当前远征。\n"
             "武器和护具会放入 **酒馆装备库**，之后可自由选择穿戴；"
             "护符会直接提供少量永久属性。\n"
             "兑换结果彼此独立，传说装备极其稀有。\n\n"
@@ -1507,10 +1528,10 @@ class CrystalExchangePanel(discord.ui.LayoutView):
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.owner_id:
-            return True
-        await interaction.response.send_message("这不是你的水晶兑换面板。", ephemeral=True)
-        return False
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("这不是你的水晶兑换面板。", ephemeral=True)
+            return False
+        return not await reject_tavern_service(interaction, "水晶兑换")
 
 
 class CrystalShopButton(discord.ui.Button):
@@ -1521,6 +1542,8 @@ class CrystalShopButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if await reject_tavern_service(interaction, "水晶兑换"):
+            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         kwargs = {"view": CrystalExchangePanel(interaction.user.id, player), "ephemeral": True}
         if CRYSTAL_SHOP_IMAGE.exists():
@@ -1615,10 +1638,10 @@ class EquipmentLibraryPanel(discord.ui.LayoutView):
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.owner_id:
-            return True
-        await interaction.response.send_message("这不是你的装备库。", ephemeral=True)
-        return False
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("这不是你的装备库。", ephemeral=True)
+            return False
+        return not await reject_tavern_service(interaction, "装备库")
 
 
 class EquipmentLibraryButton(discord.ui.Button):
@@ -1629,6 +1652,8 @@ class EquipmentLibraryButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if await reject_tavern_service(interaction, "装备库"):
+            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         ensure_equipment_inventory(player)
         store.save(player)
@@ -1646,6 +1671,8 @@ class MyStatusButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if await reject_tavern_service(interaction, "酒馆角色面板"):
+            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         sync_player_fortune(player, interaction.guild_id)
         engine.ensure_floor(player)
@@ -1712,8 +1739,14 @@ class DailyQuestButton(discord.ui.Button):
             style=discord.ButtonStyle.success,
             custom_id=custom_id,
         )
+        self.available_in_adventure = custom_id == "dungeon:adventure_daily_quests"
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if (
+            not self.available_in_adventure
+            and await reject_tavern_service(interaction, "酒馆每日任务面板")
+        ):
+            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         sync_daily_quests(player, today_key())
         store.save(player)
@@ -1814,7 +1847,7 @@ async def ensure_entrance_panel() -> None:
 
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
-school_runtime.bind_runtime(bot, EntrancePanel)
+school_runtime.bind_runtime(bot, EntrancePanel, store)
 
 
 @bot.event
