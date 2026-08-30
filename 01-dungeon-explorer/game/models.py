@@ -147,6 +147,7 @@ class Player:
     merchant_charm_rules_version: int = 6
     charm_source_rules_version: int = 4
     tavern_storage_rules_version: int = 1
+    equipment_name_rules_version: int = 1
     enemy: Enemy | None = None
     pending_event: str | None = None
     in_adventure: bool = False

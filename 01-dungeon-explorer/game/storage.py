@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .equipment import migrate_equipment_names
 from .models import Player
 
 
@@ -59,9 +60,11 @@ class PlayerStore:
                         int(state.get("merchant_charm_rules_version", 0)) >= 6
                         and int(state.get("tavern_storage_rules_version", 0)) >= 1
                         and int(state.get("crystal_charm_archive_version", 0)) >= 1
+                        and int(state.get("equipment_name_rules_version", 0)) >= 1
                     ):
                         continue
                     migrated = Player.from_dict(state)
+                    migrate_equipment_names(migrated)
                 except (TypeError, ValueError, json.JSONDecodeError):
                     continue
                 conn.execute(
@@ -82,6 +85,7 @@ class PlayerStore:
                 Player.from_dict(json.loads(row[0]))
                 if row else Player(user_id=user_id, name=name)
             )
+            migrate_equipment_names(player)
             wallet = conn.execute(
                 "SELECT gold, crystals FROM shared_wallets WHERE user_id = ?",
                 (user_id,),
