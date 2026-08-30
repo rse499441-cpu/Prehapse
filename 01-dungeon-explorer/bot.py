@@ -485,13 +485,13 @@ def inventory_embed(player: Player) -> discord.Embed:
             f"最终：攻击加成 **+{display_number(player.attack_bonus)}**｜"
             f"防御 **{display_number(player.defense)}**\n"
             f"敏捷 **{display_number(player.agility)}**｜幸运 **{display_number(player.luck)}**\n"
-            f"商人护符：赤牙 ×{player.merchant_charm_base_stats.get('attack', 0)} "
+            f"竞赛加分：学科 ×{player.merchant_charm_base_stats.get('attack', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('attack'))}**)｜"
-            f"石纹 ×{player.merchant_charm_base_stats.get('defense', 0)} "
+            f"科创 ×{player.merchant_charm_base_stats.get('defense', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('defense'))}**)\n"
-            f"风羽 ×{player.merchant_charm_base_stats.get('agility', 0)} "
+            f"体育 ×{player.merchant_charm_base_stats.get('agility', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('agility'))}**)｜"
-            f"四叶 ×{player.merchant_charm_base_stats.get('luck', 0)} "
+            f"人文 ×{player.merchant_charm_base_stats.get('luck', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('luck'))}**)\n"
             f"水晶护符（不衰减）：攻击 **+{display_number(player.crystal_charm_bonus('attack'))}**｜"
             f"防御 **+{display_number(player.crystal_charm_bonus('defense'))}**｜"
@@ -569,13 +569,13 @@ def player_panel_text(player: Player, result: GameResult | None) -> tuple[str, s
         f"🪙 **{player.gold}**　🔮 **{player.crystals}**　"
         f"⚔️ **{player.weapon} +{player.weapon_attack}**　👕 **{player.clothing}**\n"
         f"🛡️ 防御 **{display_number(player.defense)}**　💨 敏捷 **{display_number(player.agility)}**　🍀 幸运 **{display_number(player.luck)}**\n"
-        f"🧿 护符：赤牙 ×{player.merchant_charm_base_stats.get('attack', 0)} "
+        f"🏅 竞赛加分：学科 ×{player.merchant_charm_base_stats.get('attack', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('attack'))})｜"
-        f"石纹 ×{player.merchant_charm_base_stats.get('defense', 0)} "
+        f"科创 ×{player.merchant_charm_base_stats.get('defense', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('defense'))})｜"
-        f"风羽 ×{player.merchant_charm_base_stats.get('agility', 0)} "
+        f"体育 ×{player.merchant_charm_base_stats.get('agility', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('agility'))})｜"
-        f"四叶 ×{player.merchant_charm_base_stats.get('luck', 0)} "
+        f"人文 ×{player.merchant_charm_base_stats.get('luck', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('luck'))})\n"
         f"💎 水晶护符（不衰减）：攻击 +{display_number(player.crystal_charm_bonus('attack'))}｜"
         f"防御 +{display_number(player.crystal_charm_bonus('defense'))}｜"
@@ -989,9 +989,9 @@ class MerchantPanel(discord.ui.LayoutView):
         message = f"\n\n> {result.message}" if result else ""
         container.add_item(discord.ui.TextDisplay(
             f"# 🧳 旅行商人的移动商店\n"
-            "装备和护符库存为 1，药剂每格库存为 4。\n"
-            "药剂／护符售罄：药剂 60%｜护符 25%｜装备 15%。\n"
-            "装备售罄：只补药剂 70%｜护符 30%，不会连续补装备。\n"
+            "装备和竞赛加分库存为 1，药剂每格库存为 4。\n"
+            "药剂／竞赛加分售罄：药剂 60%｜竞赛加分 25%｜装备 15%。\n"
+            "装备售罄：只补药剂 70%｜竞赛加分 30%，不会连续补装备。\n"
             "也可以支付金币刷新全部四格。\n"
             "售罄补货和付费刷新共享本次相遇的 **5 次总额度**。\n"
             f"当前金币：**{player.gold}**｜刷新：**{player.merchant_refreshes}/5**"
@@ -1480,7 +1480,7 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             "必定获得 **优良或以上**的装备／护符。\n"
             "📊 **单次概率：优良 45%｜稀有 35%｜黄金 17%｜传说 3%**\n"
             "可选择砸 **1 次／5 次／10 次**；多次兑换的每一件奖励独立计算概率。\n"
-            "🍺 **水晶兑换仅限酒馆内使用**；冒险途中请先完成当前远征。\n"
+            "🏰 **探索途中也可以砸水晶**，不会改变当前楼层、战斗或探索进度。\n"
             "武器和护具会放入 **酒馆装备库**，之后可自由选择穿戴；"
             "护符会直接提供少量永久属性。\n"
             "兑换结果彼此独立，传说装备极其稀有。\n\n"
@@ -1531,7 +1531,7 @@ class CrystalExchangePanel(discord.ui.LayoutView):
         if interaction.user.id != self.owner_id:
             await interaction.response.send_message("这不是你的水晶兑换面板。", ephemeral=True)
             return False
-        return not await reject_tavern_service(interaction, "水晶兑换")
+        return True
 
 
 class CrystalShopButton(discord.ui.Button):
@@ -1542,8 +1542,6 @@ class CrystalShopButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if await reject_tavern_service(interaction, "水晶兑换"):
-            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         kwargs = {"view": CrystalExchangePanel(interaction.user.id, player), "ephemeral": True}
         if CRYSTAL_SHOP_IMAGE.exists():
@@ -1641,7 +1639,7 @@ class EquipmentLibraryPanel(discord.ui.LayoutView):
         if interaction.user.id != self.owner_id:
             await interaction.response.send_message("这不是你的装备库。", ephemeral=True)
             return False
-        return not await reject_tavern_service(interaction, "装备库")
+        return True
 
 
 class EquipmentLibraryButton(discord.ui.Button):
@@ -1652,8 +1650,6 @@ class EquipmentLibraryButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        if await reject_tavern_service(interaction, "装备库"):
-            return
         player = store.get(interaction.user.id, interaction.user.display_name)
         ensure_equipment_inventory(player)
         store.save(player)
