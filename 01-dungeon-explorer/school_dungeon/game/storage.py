@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from copy import deepcopy
 from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -11,8 +12,26 @@ from .models import Player
 
 
 class PlayerStore:
-    def __init__(self, path: str | Path = "data/dungeon.db"):
+    SHARED_EQUIPMENT_FIELDS = (
+        "weapon",
+        "weapon_attack",
+        "weapon_agility",
+        "weapon_luck",
+        "clothing",
+        "clothing_defense",
+        "clothing_agility",
+        "clothing_luck",
+        "equipment_inventory",
+        "crystal_equipment",
+    )
+
+    def __init__(
+        self,
+        path: str | Path = "data/dungeon.db",
+        shared_path: str | Path | None = None,
+    ):
         self.path = Path(path)
+        self.shared_path = Path(shared_path) if shared_path else self.path
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as conn:
             conn.execute(
@@ -42,10 +61,71 @@ class PlayerStore:
                 "PRIMARY KEY (week_key, user_id))"
             )
             conn.commit()
+        self.set_shared_path(self.shared_path)
         self._migrate_player_states()
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path, timeout=10)
+
+    def _connect_shared(self) -> sqlite3.Connection:
+        return sqlite3.connect(self.shared_path, timeout=10)
+
+    def set_shared_path(self, path: str | Path) -> None:
+        """把金币钱包指向地下城一，并从其角色存档同步装备。"""
+        self.shared_path = Path(path)
+        self.shared_path.parent.mkdir(parents=True, exist_ok=True)
+        with closing(self._connect_shared()) as conn:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS players "
+                "(user_id INTEGER PRIMARY KEY, state TEXT NOT NULL)"
+            )
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS shared_wallets ("
+                "user_id INTEGER PRIMARY KEY, "
+                "gold INTEGER NOT NULL DEFAULT 0, "
+                "crystals INTEGER NOT NULL DEFAULT 0)"
+            )
+            conn.commit()
+
+    def _load_shared_equipment(self, player: Player) -> None:
+        with closing(self._connect_shared()) as conn:
+            row = conn.execute(
+                "SELECT state FROM players WHERE user_id = ?",
+                (player.user_id,),
+            ).fetchone()
+        if row is None:
+            return
+        try:
+            host_state = json.loads(row[0])
+        except (TypeError, json.JSONDecodeError):
+            return
+        for field_name in self.SHARED_EQUIPMENT_FIELDS:
+            if field_name in host_state:
+                shared_value = deepcopy(host_state[field_name])
+                if field_name in {"equipment_inventory", "crystal_equipment"}:
+                    local_value = getattr(player, field_name, {})
+                    if isinstance(local_value, dict) and isinstance(shared_value, dict):
+                        shared_value = {**deepcopy(local_value), **shared_value}
+                setattr(player, field_name, shared_value)
+
+    def _save_shared_equipment(self, player: Player, conn: sqlite3.Connection) -> None:
+        row = conn.execute(
+            "SELECT state FROM players WHERE user_id = ?",
+            (player.user_id,),
+        ).fetchone()
+        if row is None:
+            return
+        try:
+            host_state = json.loads(row[0])
+        except (TypeError, json.JSONDecodeError):
+            return
+        player_state = player.to_dict()
+        for field_name in self.SHARED_EQUIPMENT_FIELDS:
+            host_state[field_name] = deepcopy(player_state[field_name])
+        conn.execute(
+            "UPDATE players SET state = ? WHERE user_id = ?",
+            (json.dumps(host_state, ensure_ascii=False), player.user_id),
+        )
 
     def _migrate_player_states(self) -> None:
         """启动时把全部旧玩家状态迁移并永久写回，而不是等待逐个登录。"""
@@ -82,6 +162,7 @@ class PlayerStore:
                 Player.from_dict(json.loads(row[0]))
                 if row else Player(user_id=user_id, name=name)
             )
+        with closing(self._connect_shared()) as conn:
             wallet = conn.execute(
                 "SELECT gold, crystals FROM shared_wallets WHERE user_id = ?",
                 (user_id,),
@@ -94,6 +175,7 @@ class PlayerStore:
                 )
                 conn.commit()
                 wallet = (player.gold, player.crystals)
+        self._load_shared_equipment(player)
         player.gold = int(wallet[0])
         player.crystals = int(wallet[1])
         player.name = name
@@ -102,7 +184,7 @@ class PlayerStore:
         return player
 
     def save(self, player: Player) -> None:
-        with closing(self._connect()) as conn:
+        with closing(self._connect_shared()) as conn:
             conn.execute("BEGIN IMMEDIATE")
             wallet = conn.execute(
                 "SELECT gold, crystals FROM shared_wallets WHERE user_id = ?",
@@ -122,7 +204,7 @@ class PlayerStore:
                 gold_delta = player.gold - loaded_gold
                 crystal_delta = player.crystals - loaded_crystals
                 conn.execute(
-                    "UPDATE shared_wallets SET gold=MAX(0, gold+?), "
+                    "UPDATE shared_wallets SET gold=gold+?, "
                     "crystals=MAX(0, crystals+?) WHERE user_id=?",
                     (gold_delta, crystal_delta, player.user_id),
                 )
@@ -132,6 +214,9 @@ class PlayerStore:
                 ).fetchone()
             player.gold = int(shared_gold)
             player.crystals = int(shared_crystals)
+            self._save_shared_equipment(player, conn)
+            conn.commit()
+        with closing(self._connect()) as conn:
             payload = json.dumps(player.to_dict(), ensure_ascii=False)
             conn.execute(
                 "INSERT INTO players(user_id, state) VALUES(?, ?) "
