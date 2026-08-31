@@ -178,12 +178,12 @@ class GameEngine:
     @staticmethod
     def adventurer_title(completion_count: int) -> str:
         titles = {
-            1: "❄️ 一星冒险者",
-            2: "❄️ 二星冒险者",
-            3: "❄️ 三星冒险者",
-            4: "❄️ 四星冒险者",
+            1: "❄️ 一星学生",
+            2: "❄️ 二星学生",
+            3: "❄️ 三星学生",
+            4: "❄️ 四星学生",
         }
-        return titles.get(max(1, completion_count), "❄️ 初级冒险者")
+        return titles.get(max(1, completion_count), "❄️ 优秀学生")
 
     def ensure_floor(self, player: Player) -> None:
         if player.required_steps <= 0:
@@ -361,7 +361,7 @@ class GameEngine:
                         "永久属性提升：⚔️ **攻击 +5**｜🛡️ **防御 +3**。\n"
                         f"下一轮探索提升为 **★{next_star}**；"
                         "等级和经验已重置，装备、收藏与永久属性保留。\n"
-                        "风雪将你送回了冒险者酒馆。",
+                        "校钟将你送回了酒馆。",
                         completed=True,
                         awarded_title=awarded_title,
                     )
@@ -1137,7 +1137,7 @@ class GameEngine:
         return GameResult(
             "🛺 鼹鼠车夫紧急救援",
             f"你在第 **{old_floor} 层**点亮求救灯。路过的鼹鼠车夫发现了你，"
-            "随后把你安全送回冒险者酒馆。\n"
+            "随后把你安全送回酒馆。\n"
             f"等级、经验和层数已重置；普通道具随机只保留：**{kept_text}**。"
             f"金币由 **{original_gold}** 减少为 **{player.gold}**；"
             "装备、魔法水晶和永久加成保留。\n"
