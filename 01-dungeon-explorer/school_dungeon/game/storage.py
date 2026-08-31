@@ -2,30 +2,17 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from copy import deepcopy
 from contextlib import closing
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .equipment import migrate_equipment_names
+from .crystal import migrate_crystal_reward_names
 from .models import Player
 
 
 class PlayerStore:
-    SHARED_EQUIPMENT_FIELDS = (
-        "weapon",
-        "weapon_attack",
-        "weapon_agility",
-        "weapon_luck",
-        "clothing",
-        "clothing_defense",
-        "clothing_agility",
-        "clothing_luck",
-        "equipment_inventory",
-        "crystal_equipment",
-    )
-
     def __init__(
         self,
         path: str | Path = "data/dungeon.db",
@@ -72,7 +59,7 @@ class PlayerStore:
         return sqlite3.connect(self.shared_path, timeout=10)
 
     def set_shared_path(self, path: str | Path) -> None:
-        """把金币钱包指向地下城一，并从其角色存档同步装备。"""
+        """只把金币与魔法水晶钱包指向地下城一；角色装备保持独立。"""
         self.shared_path = Path(path)
         self.shared_path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect_shared()) as conn:
@@ -88,46 +75,6 @@ class PlayerStore:
             )
             conn.commit()
 
-    def _load_shared_equipment(self, player: Player) -> None:
-        with closing(self._connect_shared()) as conn:
-            row = conn.execute(
-                "SELECT state FROM players WHERE user_id = ?",
-                (player.user_id,),
-            ).fetchone()
-        if row is None:
-            return
-        try:
-            host_state = json.loads(row[0])
-        except (TypeError, json.JSONDecodeError):
-            return
-        for field_name in self.SHARED_EQUIPMENT_FIELDS:
-            if field_name in host_state:
-                shared_value = deepcopy(host_state[field_name])
-                if field_name in {"equipment_inventory", "crystal_equipment"}:
-                    local_value = getattr(player, field_name, {})
-                    if isinstance(local_value, dict) and isinstance(shared_value, dict):
-                        shared_value = {**deepcopy(local_value), **shared_value}
-                setattr(player, field_name, shared_value)
-
-    def _save_shared_equipment(self, player: Player, conn: sqlite3.Connection) -> None:
-        row = conn.execute(
-            "SELECT state FROM players WHERE user_id = ?",
-            (player.user_id,),
-        ).fetchone()
-        if row is None:
-            return
-        try:
-            host_state = json.loads(row[0])
-        except (TypeError, json.JSONDecodeError):
-            return
-        player_state = player.to_dict()
-        for field_name in self.SHARED_EQUIPMENT_FIELDS:
-            host_state[field_name] = deepcopy(player_state[field_name])
-        conn.execute(
-            "UPDATE players SET state = ? WHERE user_id = ?",
-            (json.dumps(host_state, ensure_ascii=False), player.user_id),
-        )
-
     def _migrate_player_states(self) -> None:
         """启动时把全部旧玩家状态迁移并永久写回，而不是等待逐个登录。"""
         with closing(self._connect()) as conn:
@@ -141,10 +88,13 @@ class PlayerStore:
                         and int(state.get("tavern_storage_rules_version", 0)) >= 1
                         and int(state.get("crystal_charm_archive_version", 0)) >= 1
                         and int(state.get("equipment_name_rules_version", 0)) >= 1
+                        and int(state.get("school_supply_name_rules_version", 0)) >= 1
+                        and int(state.get("crystal_pool_name_rules_version", 0)) >= 1
                     ):
                         continue
                     migrated = Player.from_dict(state)
                     migrate_equipment_names(migrated)
+                    migrate_crystal_reward_names(migrated)
                 except (TypeError, ValueError, json.JSONDecodeError):
                     continue
                 conn.execute(
@@ -178,8 +128,8 @@ class PlayerStore:
                 )
                 conn.commit()
                 wallet = (player.gold, player.crystals)
-        self._load_shared_equipment(player)
         migrate_equipment_names(player)
+        migrate_crystal_reward_names(player)
         player.gold = int(wallet[0])
         player.crystals = int(wallet[1])
         player.name = name
@@ -218,7 +168,6 @@ class PlayerStore:
                 ).fetchone()
             player.gold = int(shared_gold)
             player.crystals = int(shared_crystals)
-            self._save_shared_equipment(player, conn)
             conn.commit()
         with closing(self._connect()) as conn:
             payload = json.dumps(player.to_dict(), ensure_ascii=False)

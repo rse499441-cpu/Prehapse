@@ -27,7 +27,7 @@ QUEST_POOL = (
     DailyQuest("floors", "🏫", "深入永不下课的学园", "单日向上推进 10 层", 10, "gold", 180),
     DailyQuest("chests", "🗄️", "资深储物柜观察员", "开启 12 个真正的储物柜", 12, "gold", 160),
     DailyQuest("small_bosses", "👾", "守层者连战", "击败 5 只小 Boss", 5, "exp", 150),
-    DailyQuest("potion_free", "🧪", "无伤补给挑战", "不使用药水连续完成 20 次探索", 20, "gold", 200),
+    DailyQuest("potion_free", "🧪", "无伤补给挑战", "不使用校园补给连续完成 20 次探索", 20, "gold", 200),
     DailyQuest("gold_earned", "🪙", "地下淘金者", "单日获得 1,000 金币", 1000, "gold", 120),
     DailyQuest("major_bosses", "🔮", "稀有水晶委托", "击败 3 只大 Boss", 3, "crystals", 1),
     DailyQuest("reach_floor", "💯", "远征记录", "单次冒险抵达第 50 层", 50, "crystals", 1),

@@ -8,6 +8,8 @@ from .equipment import register_equipment
 
 
 CRYSTAL_EXCHANGE_COST = 3
+CRYSTAL_POOL_NAME = "神秘研究社库藏"
+EQUIPMENT_ORIGIN = "地下城二"
 CRYSTAL_RARITY_WEIGHTS = {
     "优良": 45,
     "稀有": 35,
@@ -48,12 +50,20 @@ class CrystalReward:
 
 
 REWARD_PREFIXES = [
+    "校徽", "晨读", "墨痕", "星轨", "实验", "图书", "礼堂", "操场", "黑板", "粉笔",
+    "社团", "竞赛", "档案", "校钟", "走廊", "天台", "温室", "机房", "广播", "光荣榜",
+]
+WEAPON_FORMS = ["钢笔", "教鞭", "圆规", "三角尺", "订书机", "剪刀", "接力棒", "指挥棒"]
+ARMOR_FORMS = ["校服", "运动服", "实验服", "围裙", "防护背心", "冬季披风", "礼仪西装", "天文礼装"]
+CHARM_FORMS = ["加分章", "荣誉证", "社团徽章", "竞赛奖章", "值日袖章", "学生证", "奖学金章", "光荣榜铭牌"]
+
+LEGACY_REWARD_PREFIXES = [
     "星屑", "苍月", "夜雾", "晨曦", "霜花", "流火", "青岚", "紫电", "银羽", "绯樱",
     "幽灯", "晶歌", "潮汐", "熔心", "墨影", "齿轮", "极光", "月庭", "龙息", "天穹",
 ]
-WEAPON_FORMS = ["短刃", "长剑", "弯刀", "法杖", "战锤", "月轮", "双剑", "魔枪"]
-ARMOR_FORMS = ["旅袍", "斗篷", "轻甲", "法衣", "披风", "礼装", "战裙", "护衣"]
-CHARM_FORMS = ["星石", "魔眼", "护符", "月坠", "羽印", "灵铃", "秘钥", "晶核"]
+LEGACY_WEAPON_FORMS = ["短刃", "长剑", "弯刀", "法杖", "战锤", "月轮", "双剑", "魔枪"]
+LEGACY_ARMOR_FORMS = ["旅袍", "斗篷", "轻甲", "法衣", "披风", "礼装", "战裙", "护衣"]
+LEGACY_CHARM_FORMS = ["星石", "魔眼", "护符", "月坠", "羽印", "灵铃", "秘钥", "晶核"]
 
 
 def _build_rarity_pool(
@@ -108,12 +118,60 @@ CRYSTAL_REWARDS = (
     + _build_rarity_pool("稀有", 47, 22, 12, 3, 2)
     + _build_rarity_pool("黄金", 23, 28, 17, 4, 4)
     + [
-    CrystalReward("legend_blade", "永夜星穹", "传说", "武器", attack=36, agility=6, luck=6),
-    CrystalReward("legend_robe", "创世星海圣衣", "传说", "护具", defense=23, agility=6, luck=7),
-    CrystalReward("legend_charm", "女神的第三颗星", "传说", "护符", attack=4, defense=4, luck=4),
-    CrystalReward("legend_staff", "时空女巫权杖", "传说", "武器", attack=35, agility=5, luck=8),
+    CrystalReward("legend_blade", "光荣榜榜首·相片", "传说", "武器", attack=36, agility=6, luck=6),
+    CrystalReward("legend_robe", "光荣榜授勋礼装", "传说", "护具", defense=23, agility=6, luck=7),
+    CrystalReward("legend_charm", "光荣榜榜首·徽章", "传说", "护符", attack=4, defense=4, luck=4),
+    CrystalReward("legend_staff", "光荣榜榜首·宣言", "传说", "武器", attack=35, agility=5, luck=8),
     ]
 )
+
+
+LEGACY_LEGEND_NAMES = {
+    "legend_blade": "永夜星穹",
+    "legend_robe": "创世星海圣衣",
+    "legend_charm": "女神的第三颗星",
+    "legend_staff": "时空女巫权杖",
+}
+
+
+def _legacy_reward_name(reward: CrystalReward) -> str:
+    if reward.key in LEGACY_LEGEND_NAMES:
+        return LEGACY_LEGEND_NAMES[reward.key]
+    index = int(reward.key.rsplit("_", 1)[1])
+    forms = {
+        "武器": LEGACY_WEAPON_FORMS,
+        "护具": LEGACY_ARMOR_FORMS,
+        "护符": LEGACY_CHARM_FORMS,
+    }
+    rarity_title = {"优良": "", "稀有": "秘银·", "黄金": "辉耀·"}[reward.rarity]
+    prefix = LEGACY_REWARD_PREFIXES[index % len(LEGACY_REWARD_PREFIXES)]
+    form_pool = forms[reward.category]
+    form = form_pool[(index // len(LEGACY_REWARD_PREFIXES) + index) % len(form_pool)]
+    return f"{rarity_title}{prefix}{form}·{index + 1:02d}"
+
+
+def migrate_crystal_reward_names(player: Player) -> bool:
+    """把地下城二旧水晶池装备迁移为学园名称，不触碰地下城一存档。"""
+    renames = {_legacy_reward_name(reward): reward.name for reward in CRYSTAL_REWARDS}
+    source = player.equipment_inventory if isinstance(player.equipment_inventory, dict) else {}
+    migrated: dict[str, dict[str, object]] = {}
+    changed = False
+    for old_name, raw_item in source.items():
+        if not isinstance(raw_item, dict):
+            continue
+        new_name = renames.get(str(old_name), str(old_name))
+        item = dict(raw_item)
+        item["name"] = new_name
+        migrated.setdefault(new_name, item)
+        changed = changed or new_name != old_name
+    player.equipment_inventory = migrated
+    new_weapon = renames.get(player.weapon, player.weapon)
+    new_clothing = renames.get(player.clothing, player.clothing)
+    changed = changed or new_weapon != player.weapon or new_clothing != player.clothing
+    player.weapon = new_weapon
+    player.clothing = new_clothing
+    player.crystal_pool_name_rules_version = 1
+    return changed
 
 
 def crystal_charm_values_text(player: Player) -> str:

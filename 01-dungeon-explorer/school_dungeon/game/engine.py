@@ -45,12 +45,12 @@ class GameEngine:
     }
     MAJOR_BOSS_NAMES = MAJOR_BOSS_NAMES
     MERCHANT_ITEMS = {
-        "healing_potion": ("治疗药水", "药剂", "恢复 35 点体力", 25, {}),
-        "mana_potion": ("魔力药水", "药剂", "恢复 25 点魔力", 30, {}),
-        "energy_potion": ("精力药水", "药剂", "恢复 30 点精力", 35, {}),
-        "greater_energy_potion": ("强效精力药水", "药剂", "恢复 60 点精力（20层后出现）", 85, {}),
-        "greater_healing_potion": ("强效治疗药水", "药剂", "恢复 60 点体力", 58, {}),
-        "greater_mana_potion": ("强效魔力药水", "药剂", "恢复 50 点魔力", 72, {}),
+        "healing_potion": ("学生牛奶", "药剂", "恢复 35 点体力", 25, {}),
+        "mana_potion": ("清凉油", "药剂", "恢复 25 点精神力", 30, {}),
+        "energy_potion": ("运动饮料", "药剂", "恢复 30 点精力", 35, {}),
+        "greater_energy_potion": ("安神补脑液", "药剂", "恢复 60 点精力（20层后出现）", 85, {}),
+        "greater_healing_potion": ("校园营养餐", "药剂", "恢复 60 点体力", 58, {}),
+        "greater_mana_potion": ("强劲薄荷糖", "药剂", "恢复 50 点精神力", 72, {}),
         "guard_charm": ("科创竞赛加分", "护符", "永久防御 +1", 115, {"defense": 1}),
         "lucky_charm": ("人文竞赛加分", "护符", "永久幸运 +1", 135, {"luck": 1}),
         "swift_charm": ("体育竞赛加分", "护符", "永久敏捷 +1", 125, {"agility": 1}),
@@ -297,7 +297,7 @@ class GameEngine:
                 player.gold += reclaimed_gold
             bonus_drop = ""
             if self.rng.random() < min(0.35, player.luck * 0.015):
-                item = self.rng.choice(("治疗药水", "魔力药水", "精力药水"))
+                item = self.rng.choice(("学生牛奶", "清凉油", "运动饮料"))
                 player.consumables[item] = player.consumables.get(item, 0) + 1
                 bonus_drop = f"，幸运额外掉落 **{item} ×1**"
             equipment_drop = ""
@@ -638,11 +638,11 @@ class GameEngine:
             )
         if event == "fairy":
             player.pending_event = None
-            item = "治疗药水"
+            item = "学生牛奶"
             if player.consumables.get(item, 0) <= 0:
                 return GameResult(
                     "🧑‍🎓 新生有点失望",
-                    "你翻遍行囊也没有找到治疗药水。她抱着空白作业本离开了。",
+                    "你翻遍行囊也没有找到学生牛奶。她抱着空白作业本离开了。",
                 )
             player.consumables[item] -= 1
             reward_roll = self.rng.random()
@@ -662,7 +662,7 @@ class GameEngine:
                 )
                 player.gold += gold
                 reward = f"**{gold} 金币**"
-            return GameResult("🧑‍🎓 新生的谢礼", f"交出 **治疗药水 ×1**，获得{reward}。")
+            return GameResult("🧑‍🎓 新生的谢礼", f"交出 **学生牛奶 ×1**，获得{reward}。")
         if event == "mystery":
             player.pending_event = None
             outcome = self.rng.choice(("heal", "hurt", "battle", "gold"))
@@ -721,9 +721,9 @@ class GameEngine:
                     player.floor, star=player.completion_count
                 )
                 return GameResult("👾 器材室管理员回来了！", f"**{player.enemy.name}** 把你当成了入侵者！", True)
-            item_pool = ["治疗药水", "魔力药水", "精力药水"]
+            item_pool = ["学生牛奶", "清凉油", "运动饮料"]
             if player.floor >= 20:
-                item_pool.append("强效精力药水")
+                item_pool.append("安神补脑液")
             item = self.rng.choice(item_pool)
             player.consumables[item] = player.consumables.get(item, 0) + 1
             return GameResult("🐾 吉祥物记住了你的气味", f"它叼来 **{item} ×1** 作为谢礼，然后摇着尾巴离开了。")
@@ -750,8 +750,8 @@ class GameEngine:
         player.gold += gold
         extra = ""
         if self.rng.random() < min(0.65, 0.25 + player.luck * 0.02):
-            player.consumables["治疗药水"] = player.consumables.get("治疗药水", 0) + 1
-            extra = "，以及一瓶治疗药水"
+            player.consumables["学生牛奶"] = player.consumables.get("学生牛奶", 0) + 1
+            extra = "，以及一盒学生牛奶"
         return GameResult("🗄️ 储物柜开启！", f"消耗 2 点精力，获得 **{gold} 金币**{extra}。")
 
     def decline_event(self, player: Player) -> GameResult:
@@ -1005,51 +1005,51 @@ class GameEngine:
 
     def use_potion(self, player: Player) -> GameResult:
         if player.energy < 2:
-            return GameResult("精力不足", "喝治疗药水也需要 **2 点精力**；请使用精力药水或呼叫救援。")
-        greater_count = player.consumables.get("强效治疗药水", 0)
+            return GameResult("精力不足", "食用校园营养餐或饮用学生牛奶需要 **2 点精力**；请使用恢复精力的补给或呼叫救援。")
+        greater_count = player.consumables.get("校园营养餐", 0)
         if greater_count > 0 and player.hp < player.max_hp:
             healed = min(60, player.max_hp - player.hp)
             player.hp += healed
-            player.consumables["强效治疗药水"] = greater_count - 1
+            player.consumables["校园营养餐"] = greater_count - 1
             player.energy -= 2
-            return GameResult("🧪 使用强效治疗药水", f"消耗 **2 精力**，恢复 **{healed} 点体力**。")
-        count = player.consumables.get("治疗药水", 0)
+            return GameResult("🍱 食用校园营养餐", f"消耗 **2 精力**，恢复 **{healed} 点体力**。")
+        count = player.consumables.get("学生牛奶", 0)
         if count <= 0:
-            return GameResult("没有药水", "你的道具栏中没有治疗药水。")
+            return GameResult("没有体力补给", "你的道具栏中没有学生牛奶或校园营养餐。")
         if player.hp >= player.max_hp:
             return GameResult("无需治疗", "你的体力已经全满。")
         healed = min(35, player.max_hp - player.hp)
         player.hp += healed
-        player.consumables["治疗药水"] = count - 1
+        player.consumables["学生牛奶"] = count - 1
         player.energy -= 2
-        return GameResult("使用道具", f"消耗 **2 精力**，恢复了 {healed} 点体力。")
+        return GameResult("🥛 饮用学生牛奶", f"消耗 **2 精力**，恢复了 {healed} 点体力。")
 
     def use_mana_potion(self, player: Player) -> GameResult:
         if player.energy < 2:
-            return GameResult("精力不足", "喝魔力药水也需要 **2 点精力**；请使用精力药水或呼叫救援。")
-        greater_count = player.consumables.get("强效魔力药水", 0)
+            return GameResult("精力不足", "使用清凉油或食用强劲薄荷糖需要 **2 点精力**；请使用恢复精力的补给或呼叫救援。")
+        greater_count = player.consumables.get("强劲薄荷糖", 0)
         if greater_count > 0 and player.mp < player.max_mp:
             restored = min(50, player.max_mp - player.mp)
             player.mp += restored
-            player.consumables["强效魔力药水"] = greater_count - 1
+            player.consumables["强劲薄荷糖"] = greater_count - 1
             player.energy -= 2
             return GameResult(
-                "💧 使用强效魔力药水",
-                f"消耗 **2 精力**，恢复 **{restored} 点魔力**。",
+                "🍬 食用强劲薄荷糖",
+                f"消耗 **2 精力**，恢复 **{restored} 点精神力**。",
             )
-        count = player.consumables.get("魔力药水", 0)
+        count = player.consumables.get("清凉油", 0)
         if count <= 0:
-            return GameResult("没有魔力药水", "你的道具栏中没有魔力药水。")
+            return GameResult("没有精神力补给", "你的道具栏中没有清凉油或强劲薄荷糖。")
         if player.mp >= player.max_mp:
-            return GameResult("魔力已满", "你现在不需要使用魔力药水。")
+            return GameResult("精神力已满", "你现在不需要使用精神力补给。")
         restored = min(25, player.max_mp - player.mp)
         player.mp += restored
-        player.consumables["魔力药水"] = count - 1
+        player.consumables["清凉油"] = count - 1
         player.energy -= 2
-        return GameResult("💧 使用魔力药水", f"消耗 **2 精力**，恢复 **{restored} 点魔力**。")
+        return GameResult("🧴 使用清凉油", f"消耗 **2 精力**，恢复 **{restored} 点精神力**。")
 
     def use_energy_potion(self, player: Player) -> GameResult:
-        greater_count = player.consumables.get("强效精力药水", 0)
+        greater_count = player.consumables.get("安神补脑液", 0)
         if greater_count > 0 and player.energy < player.max_energy:
             space = player.max_energy - player.energy
             if space <= 2:
@@ -1057,26 +1057,26 @@ class GameEngine:
             restored = min(60, space)
             net = restored - 2
             player.energy += net
-            player.consumables["强效精力药水"] = greater_count - 1
+            player.consumables["安神补脑液"] = greater_count - 1
             return GameResult(
-                "⚡ 使用强效精力药水",
-                f"药效恢复 **{restored} 精力**，饮用消耗 **2 精力**，实际增加 **{net}**。",
+                "🧠 饮用安神补脑液",
+                f"补给恢复 **{restored} 精力**，饮用消耗 **2 精力**，实际增加 **{net}**。",
             )
-        count = player.consumables.get("精力药水", 0)
+        count = player.consumables.get("运动饮料", 0)
         if count <= 0:
-            return GameResult("没有精力药水", "你的道具栏中没有精力药水。")
+            return GameResult("没有精力补给", "你的道具栏中没有运动饮料或安神补脑液。")
         if player.energy >= player.max_energy:
-            return GameResult("精力已满", "你现在不需要使用精力药水。")
+            return GameResult("精力已满", "你现在不需要使用精力补给。")
         space = player.max_energy - player.energy
         if space <= 2:
             return GameResult("精力接近全满", "至少空出 **3 点精力**再饮用，避免浪费药效。")
         restored = min(30, space)
         net = restored - 2
         player.energy += net
-        player.consumables["精力药水"] = count - 1
+        player.consumables["运动饮料"] = count - 1
         return GameResult(
-            "⚡ 使用精力药水",
-            f"药效恢复 **{restored} 精力**，饮用消耗 **2 精力**，实际增加 **{net}**。",
+            "🥤 饮用运动饮料",
+            f"补给恢复 **{restored} 精力**，饮用消耗 **2 精力**，实际增加 **{net}**。",
         )
 
     def request_rescue(self, player: Player) -> GameResult:
@@ -1086,10 +1086,10 @@ class GameEngine:
         if player.energy >= 3:
             return GameResult("还不需要救援", "你仍有足够精力继续探索。")
         if (
-            player.consumables.get("精力药水", 0) > 0
-            or player.consumables.get("强效精力药水", 0) > 0
+            player.consumables.get("运动饮料", 0) > 0
+            or player.consumables.get("安神补脑液", 0) > 0
         ):
-            return GameResult("行囊里还有补给", "先使用一瓶精力药水就能继续前进。")
+            return GameResult("行囊里还有补给", "先使用一份精力补给就能继续前进。")
         return GameResult(
             "🛺 地下城紧急脱困",
             "远处传来车铃声，鼹鼠车夫停在了你面前；与此同时，"
@@ -1101,8 +1101,8 @@ class GameEngine:
         """按死亡方式结算，但由车夫安全送回酒馆。"""
         if (
             player.enemy or player.energy >= 3
-            or player.consumables.get("精力药水", 0) > 0
-            or player.consumables.get("强效精力药水", 0) > 0
+            or player.consumables.get("运动饮料", 0) > 0
+            or player.consumables.get("安神补脑液", 0) > 0
         ):
             return self.request_rescue(player)
 
@@ -1149,8 +1149,8 @@ class GameEngine:
         """放弃本次等级与经验，从地下城一层重新开始，不返回酒馆。"""
         if (
             player.enemy or player.energy >= 3
-            or player.consumables.get("精力药水", 0) > 0
-            or player.consumables.get("强效精力药水", 0) > 0
+            or player.consumables.get("运动饮料", 0) > 0
+            or player.consumables.get("安神补脑液", 0) > 0
         ):
             return self.request_rescue(player)
         old_level, old_exp, old_floor = player.level, player.exp, player.floor
@@ -1282,11 +1282,11 @@ class GameEngine:
 
     def _event_mimic(self, player: Player) -> GameResult:
         player.pending_event = "mimic"
-        return GameResult("🎒 你发现了无人认领的书包", "拉链缝里传来文具碰撞声。打开后可能获得金币、药水，也可能被它咬住。")
+        return GameResult("🎒 你发现了无人认领的书包", "拉链缝里传来文具碰撞声。打开后可能获得金币、校园补给，也可能被它咬住。")
 
     def _event_chest(self, player: Player) -> GameResult:
         player.pending_event = "chest"
-        return GameResult("🗄️ 你发现了上锁的储物柜", "柜门后传来轻轻的碰撞声。打开后可能获得金币、药水或其他物品。")
+        return GameResult("🗄️ 你发现了上锁的储物柜", "柜门后传来轻轻的碰撞声。打开后可能获得金币、校园补给或其他物品。")
 
     def _event_trap(self, player: Player) -> GameResult:
         raw_damage = self.rng.randint(5, 12) + player.floor // 3
@@ -1348,7 +1348,7 @@ class GameEngine:
         player.merchant_refreshes = 0
         return GameResult(
             f"🧳 你遇到了旅行商人·{MERCHANT_NAME}！",
-            f"**{MERCHANT_NAME}** 推着塞满文具、药水和违禁零食的小车穿过走廊。"
+            f"**{MERCHANT_NAME}** 推着塞满文具、校园补给和违禁零食的小车穿过走廊。"
             "货物每次相遇都会变化：药剂常见，偶尔也会出现竞赛加分、武器或装备。",
         )
 
@@ -1356,7 +1356,7 @@ class GameEngine:
         player.pending_event = "fairy"
         return GameResult(
             "🧑‍🎓 你遇到了忘带作业的新生！",
-            "她希望得到 **治疗药水 ×1**平复惊吓。帮助她可能获得金币、经验，极低概率获得魔法水晶。",
+            "她希望得到 **学生牛奶 ×1**平复惊吓。帮助她可能获得金币、经验，极低概率获得魔法水晶。",
         )
 
     def _event_mystery(self, player: Player) -> GameResult:

@@ -73,19 +73,19 @@ ARMORS = [
 ]
 
 CONSUMABLES = [
-    ShopItem("c_heal", "治疗药水", "道具", "普通", 45, effect="恢复 35 点体力"),
-    ShopItem("c_mana", "魔力药水", "道具", "普通", 55, effect="恢复 25 点魔力"),
-    ShopItem("c_energy", "精力药水", "道具", "优良", 70, effect="恢复 30 点精力"),
+    ShopItem("c_heal", "学生牛奶", "道具", "普通", 45, effect="恢复 35 点体力"),
+    ShopItem("c_mana", "清凉油", "道具", "普通", 55, effect="恢复 25 点精神力"),
+    ShopItem("c_energy", "运动饮料", "道具", "优良", 70, effect="恢复 30 点精力"),
     ShopItem("c_charm", "幸运护符", "道具", "稀有", 180, effect="用于稀有事件与委托"),
     ShopItem("c_map", "空白藏宝图", "道具", "优良", 130, effect="可供部分随机事件使用"),
-    ShopItem("c_greater_heal", "强效治疗药水", "道具", "优良", 110, effect="恢复 60 点体力"),
-    ShopItem("c_greater_mana", "强效魔力药水", "道具", "优良", 125, effect="恢复 50 点魔力"),
-    ShopItem("c_greater_energy", "强效精力药水", "道具", "稀有", 150, effect="恢复 60 点精力"),
+    ShopItem("c_greater_heal", "校园营养餐", "道具", "优良", 110, effect="恢复 60 点体力"),
+    ShopItem("c_greater_mana", "强劲薄荷糖", "道具", "优良", 125, effect="恢复 50 点精神力"),
+    ShopItem("c_greater_energy", "安神补脑液", "道具", "稀有", 150, effect="恢复 60 点精力"),
 ]
 
 
 def daily_stock(date_key: str) -> list[ShopItem]:
-    rng = random.Random(f"dungeon-gold-shop:{date_key}:v2-expanded")
+    rng = random.Random(f"dungeon-two-gold-shop:{date_key}:v3-independent")
     return rng.sample(WEAPONS, 4) + rng.sample(ARMORS, 4) + rng.sample(CONSUMABLES, 4)
 
 

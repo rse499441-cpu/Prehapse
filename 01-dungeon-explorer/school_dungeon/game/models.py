@@ -7,6 +7,26 @@ from typing import Any
 
 MERCHANT_CHARM_STATS = ("attack", "defense", "agility", "luck")
 
+SCHOOL_SUPPLY_NAME_MIGRATIONS = {
+    "治疗药水": "学生牛奶",
+    "强效治疗药水": "校园营养餐",
+    "魔力药水": "清凉油",
+    "强效魔力药水": "强劲薄荷糖",
+    "精力药水": "运动饮料",
+    "强效精力药水": "安神补脑液",
+}
+
+
+def migrate_school_supply_names(consumables: Any) -> dict[str, int]:
+    """只迁移地下城二的独立补给栏；同名新旧库存会合并。"""
+    if not isinstance(consumables, dict):
+        return {}
+    migrated: dict[str, int] = {}
+    for raw_name, raw_count in consumables.items():
+        name = SCHOOL_SUPPLY_NAME_MIGRATIONS.get(str(raw_name), str(raw_name))
+        migrated[name] = migrated.get(name, 0) + max(0, int(raw_count))
+    return migrated
+
 
 def inferred_crystal_charm_count(bonus: float) -> int:
     """历史水晶数值反推次数：有数值时至少记 1 次。"""
@@ -135,7 +155,7 @@ class Player:
     daily_fortune_growth: float = 0.0
     daily_fortune_date: str = ""
     daily_fortune_score: int = 0
-    consumables: dict[str, int] = field(default_factory=lambda: {"治疗药水": 2})
+    consumables: dict[str, int] = field(default_factory=lambda: {"学生牛奶": 2})
     equipment_inventory: dict[str, dict[str, Any]] = field(default_factory=dict)
     crystal_equipment: dict[str, int] = field(default_factory=dict)
     crystal_charm_history_note: str = ""
@@ -151,6 +171,8 @@ class Player:
     charm_source_rules_version: int = 4
     tavern_storage_rules_version: int = 1
     equipment_name_rules_version: int = 1
+    school_supply_name_rules_version: int = 1
+    crystal_pool_name_rules_version: int = 1
     enemy: Enemy | None = None
     pending_event: str | None = None
     pending_quiz: dict[str, Any] | None = None
@@ -277,6 +299,11 @@ class Player:
             max(crystal_counts.values(), default=0),
         )
         values["crystal_charm_archive_version"] = 1
+        if int(values.get("school_supply_name_rules_version", 0)) < 1:
+            values["consumables"] = migrate_school_supply_names(
+                values.get("consumables", {})
+            )
+            values["school_supply_name_rules_version"] = 1
         if int(values.get("tavern_storage_rules_version", 0)) < 1:
             is_in_tavern = not (
                 bool(values.get("in_adventure", False))
@@ -320,7 +347,8 @@ class Player:
         if isinstance(old_stock, list):
             potion_keys = {
                 "healing_potion", "mana_potion", "energy_potion",
-                "greater_healing_potion", "greater_energy_potion",
+                "greater_healing_potion", "greater_mana_potion",
+                "greater_energy_potion",
             }
             values["merchant_stock"] = {
                 key: 4 if key in potion_keys else 1
