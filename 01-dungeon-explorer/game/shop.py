@@ -39,37 +39,37 @@ RARITY_EMOJI = {
 
 
 WEAPONS = [
-    ShopItem("w_iron", "铁制直尺", "武器", "普通", 180, attack=7),
-    ShopItem("w_hunter", "田径接力棒", "武器", "优良", 420, attack=10, agility=2),
-    ShopItem("w_crystal", "蓝晶三角尺", "武器", "稀有", 850, attack=15, luck=2),
-    ShopItem("w_gold", "黄铜教鞭", "武器", "黄金", 1650, attack=21, agility=2, luck=3),
-    ShopItem("w_moon", "星轨圆规", "武器", "传说", 3600, attack=30, agility=4, luck=5),
-    ShopItem("w_pan", "食堂阿姨的平底锅", "武器", "稀有", 980, attack=17, agility=1, luck=4),
-    ShopItem("w_bronze", "裁纸刀", "武器", "普通", 230, attack=8),
-    ShopItem("w_rapier", "银羽钢笔", "武器", "优良", 510, attack=11, agility=3),
-    ShopItem("w_ember", "试剂搅棒", "武器", "优良", 560, attack=13, agility=1),
-    ShopItem("w_tide", "音乐指挥棒", "武器", "稀有", 920, attack=16, luck=4),
-    ShopItem("w_gear", "发条订书机", "武器", "稀有", 1080, attack=18, agility=3),
-    ShopItem("w_frost", "铁制剪刀", "武器", "黄金", 1780, attack=23, agility=4, luck=2),
-    ShopItem("w_sun", "灿金教鞭", "武器", "黄金", 1950, attack=25, agility=2, luck=4),
-    ShopItem("w_void", "三好学生铭牌", "武器", "传说", 4200, attack=34, agility=5, luck=6),
+    ShopItem("w_iron", "铁制短剑", "武器", "普通", 180, attack=7),
+    ShopItem("w_hunter", "猎风弯刀", "武器", "优良", 420, attack=10, agility=2),
+    ShopItem("w_crystal", "蓝晶法刃", "武器", "稀有", 850, attack=15, luck=2),
+    ShopItem("w_gold", "黄金狮心剑", "武器", "黄金", 1650, attack=21, agility=2, luck=3),
+    ShopItem("w_moon", "月蚀星辉刃", "武器", "传说", 3600, attack=30, agility=4, luck=5),
+    ShopItem("w_pan", "老板娘的平底锅", "武器", "稀有", 980, attack=17, agility=1, luck=4),
+    ShopItem("w_bronze", "青铜阔剑", "武器", "普通", 230, attack=8),
+    ShopItem("w_rapier", "银羽刺剑", "武器", "优良", 510, attack=11, agility=3),
+    ShopItem("w_ember", "余烬战锤", "武器", "优良", 560, attack=13, agility=1),
+    ShopItem("w_tide", "潮音法杖", "武器", "稀有", 920, attack=16, luck=4),
+    ShopItem("w_gear", "发条破甲枪", "武器", "稀有", 1080, attack=18, agility=3),
+    ShopItem("w_frost", "霜牙双刃", "武器", "黄金", 1780, attack=23, agility=4, luck=2),
+    ShopItem("w_sun", "日轮圣剑", "武器", "黄金", 1950, attack=25, agility=2, luck=4),
+    ShopItem("w_void", "虚空咏叹", "武器", "传说", 4200, attack=34, agility=5, luck=6),
 ]
 
 ARMORS = [
-    ShopItem("a_leather", "厚校服外套", "护具", "普通", 160, defense=3, agility=1),
-    ShopItem("a_scout", "轻羽运动服", "护具", "优良", 390, defense=4, agility=4),
-    ShopItem("a_crystal", "晶纹实验服", "护具", "稀有", 820, defense=7, luck=3),
-    ShopItem("a_gold", "暗纹风纪制服", "护具", "黄金", 1550, defense=12, agility=1, luck=2),
-    ShopItem("a_dragon", "龙纹毕业礼装", "护具", "传说", 3400, defense=17, agility=4, luck=4),
-    ShopItem("a_apron", "食堂限定围裙", "护具", "稀有", 920, defense=8, agility=2, luck=5),
-    ShopItem("a_chain", "轻环防护背心", "护具", "普通", 240, defense=4),
-    ShopItem("a_moss", "苔纹园艺服", "护具", "优良", 480, defense=5, agility=3),
-    ShopItem("a_wave", "普通泳衣", "护具", "优良", 540, defense=6, luck=3),
-    ShopItem("a_ember", "实验防护服", "护具", "稀有", 960, defense=9, agility=1, luck=2),
-    ShopItem("a_clock", "机巧实验服", "护具", "稀有", 1120, defense=10, agility=3),
-    ShopItem("a_frost", "霜冠冬季披风", "护具", "黄金", 1820, defense=14, agility=3, luck=3),
-    ShopItem("a_sun", "日耀礼仪西装", "护具", "黄金", 2050, defense=15, agility=2, luck=4),
-    ShopItem("a_void", "天文星幕礼装", "护具", "传说", 4100, defense=21, agility=5, luck=6),
+    ShopItem("a_leather", "加厚皮甲", "护具", "普通", 160, defense=3, agility=1),
+    ShopItem("a_scout", "轻羽旅装", "护具", "优良", 390, defense=4, agility=4),
+    ShopItem("a_crystal", "晶纹长袍", "护具", "稀有", 820, defense=7, luck=3),
+    ShopItem("a_gold", "黄金守卫甲", "护具", "黄金", 1550, defense=12, agility=1, luck=2),
+    ShopItem("a_dragon", "幼龙鳞披风", "护具", "传说", 3400, defense=17, agility=4, luck=4),
+    ShopItem("a_apron", "小小秦的围裙", "护具", "稀有", 920, defense=8, agility=2, luck=5),
+    ShopItem("a_chain", "轻环锁甲", "护具", "普通", 240, defense=4),
+    ShopItem("a_moss", "苔纹游侠衣", "护具", "优良", 480, defense=5, agility=3),
+    ShopItem("a_wave", "潮汐祭衣", "护具", "优良", 540, defense=6, luck=3),
+    ShopItem("a_ember", "余烬守卫甲", "护具", "稀有", 960, defense=9, agility=1, luck=2),
+    ShopItem("a_clock", "钟摆机关甲", "护具", "稀有", 1120, defense=10, agility=3),
+    ShopItem("a_frost", "霜冠王披", "护具", "黄金", 1820, defense=14, agility=3, luck=3),
+    ShopItem("a_sun", "日耀圣堂甲", "护具", "黄金", 2050, defense=15, agility=2, luck=4),
+    ShopItem("a_void", "虚空星幕", "护具", "传说", 4100, defense=21, agility=5, luck=6),
 ]
 
 CONSUMABLES = [
@@ -85,7 +85,7 @@ CONSUMABLES = [
 
 
 def daily_stock(date_key: str) -> list[ShopItem]:
-    rng = random.Random(f"dungeon-gold-shop:{date_key}:v2-expanded")
+    rng = random.Random(f"dungeon-one-gold-shop:{date_key}:v3-independent")
     return rng.sample(WEAPONS, 4) + rng.sample(ARMORS, 4) + rng.sample(CONSUMABLES, 4)
 
 

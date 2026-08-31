@@ -8,6 +8,8 @@ from .equipment import register_equipment
 
 
 CRYSTAL_EXCHANGE_COST = 3
+CRYSTAL_POOL_NAME = "女巫的水晶秘藏"
+EQUIPMENT_ORIGIN = "地下城一"
 CRYSTAL_RARITY_WEIGHTS = {
     "优良": 45,
     "稀有": 35,

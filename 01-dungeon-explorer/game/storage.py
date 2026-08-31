@@ -60,7 +60,7 @@ class PlayerStore:
                         int(state.get("merchant_charm_rules_version", 0)) >= 6
                         and int(state.get("tavern_storage_rules_version", 0)) >= 1
                         and int(state.get("crystal_charm_archive_version", 0)) >= 1
-                        and int(state.get("equipment_name_rules_version", 0)) >= 1
+                        and int(state.get("equipment_name_rules_version", 0)) >= 2
                     ):
                         continue
                     migrated = Player.from_dict(state)
