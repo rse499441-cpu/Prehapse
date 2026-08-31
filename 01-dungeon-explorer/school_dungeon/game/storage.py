@@ -87,7 +87,7 @@ class PlayerStore:
                         int(state.get("merchant_charm_rules_version", 0)) >= 6
                         and int(state.get("tavern_storage_rules_version", 0)) >= 1
                         and int(state.get("crystal_charm_archive_version", 0)) >= 1
-                        and int(state.get("equipment_name_rules_version", 0)) >= 1
+                        and int(state.get("equipment_name_rules_version", 0)) >= 2
                         and int(state.get("school_supply_name_rules_version", 0)) >= 1
                         and int(state.get("crystal_pool_name_rules_version", 0)) >= 1
                     ):
@@ -198,7 +198,7 @@ class PlayerStore:
             conn.commit()
 
     def completed_players(self) -> list[tuple[int, int]]:
-        """返回至少完成过一次百层远征的玩家及其通关次数。"""
+        """返回至少完成过一次百层学园探索的玩家及其通关次数。"""
         completed: list[tuple[int, int]] = []
         with closing(self._connect()) as conn:
             rows = conn.execute("SELECT user_id, state FROM players").fetchall()

@@ -132,11 +132,11 @@ class Player:
     stored_gold: int = 0
     gold_storage_available: bool = False
     crystals: int = 0
-    weapon: str = "新手短剑"
+    weapon: str = "木制直尺"
     weapon_attack: int = 4
     weapon_agility: int = 0
     weapon_luck: int = 0
-    clothing: str = "布衣"
+    clothing: str = "普通校服"
     clothing_defense: int = 1
     clothing_agility: int = 0
     clothing_luck: int = 0
@@ -170,7 +170,7 @@ class Player:
     merchant_charm_rules_version: int = 6
     charm_source_rules_version: int = 4
     tavern_storage_rules_version: int = 1
-    equipment_name_rules_version: int = 1
+    equipment_name_rules_version: int = 2
     school_supply_name_rules_version: int = 1
     crystal_pool_name_rules_version: int = 1
     enemy: Enemy | None = None

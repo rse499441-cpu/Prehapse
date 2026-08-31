@@ -30,7 +30,7 @@ QUEST_POOL = (
     DailyQuest("potion_free", "🧪", "无伤补给挑战", "不使用校园补给连续完成 20 次探索", 20, "gold", 200),
     DailyQuest("gold_earned", "🪙", "地下淘金者", "单日获得 1,000 金币", 1000, "gold", 120),
     DailyQuest("major_bosses", "🔮", "稀有水晶委托", "击败 3 只大 Boss", 3, "crystals", 1),
-    DailyQuest("reach_floor", "💯", "远征记录", "单次冒险抵达第 50 层", 50, "crystals", 1),
+    DailyQuest("reach_floor", "💯", "学园探索记录", "单次冒险抵达第 50 层", 50, "crystals", 1),
 )
 
 
@@ -97,7 +97,7 @@ def record_action(
     victory = (
         before_enemy is not None
         and player.enemy is None
-        and ("战斗胜利" in result_title or "百层远征完成" in result_title)
+        and ("战斗胜利" in result_title or "百层学园探索完成" in result_title)
     )
     if victory:
         if before_enemy.boss_kind == "普通怪物":

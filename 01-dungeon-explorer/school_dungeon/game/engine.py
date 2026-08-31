@@ -39,9 +39,9 @@ class GameEngine:
               ["fairy"] * 5 + ["mystery"] * 6 + ["treasure_map"] * 5 +
               ["trapped_beast"] * 5 + ["wishing_well"] * 4 + ["empty"] * 8)
     MAGIC_SKILLS = {
-        "minor": ("✨ 星火弹", 6, 1.20),
-        "medium": ("🔷 月辉矢", 12, 1.50),
-        "major": ("🌠 奥术流星", 22, 1.85),
+        "minor": ("✨ 学识火花", 6, 1.20),
+        "medium": ("🔷 灵感光矢", 12, 1.50),
+        "major": ("🌠 真理星雨", 22, 1.85),
     }
     MAJOR_BOSS_NAMES = MAJOR_BOSS_NAMES
     MERCHANT_ITEMS = {
@@ -93,7 +93,7 @@ class GameEngine:
 
     @staticmethod
     def event_damage(player: Player, raw_damage: int) -> int:
-        """敏捷与防御共同减少探索事件造成的生命或魔力损失。"""
+        """敏捷与防御共同减少探索事件造成的生命或精神力损失。"""
         return round(max(1, raw_damage - player.agility // 2 - player.defense // 3), 2)
 
     @staticmethod
@@ -132,7 +132,7 @@ class GameEngine:
         base_chance: float,
         fortune_growth: float = 0.0,
     ) -> float:
-        """1—30 层提供 1.5 倍概率；精灵水晶再受当日运势比例增长。"""
+        """1—30 层提供 1.5 倍概率；新生谢礼水晶再受当日运势比例增长。"""
         floor_multiplier = 1.5 if floor <= 30 else 1.0
         return min(1.0, base_chance * floor_multiplier * (1 + max(0.0, fortune_growth)))
 
@@ -245,7 +245,7 @@ class GameEngine:
             skill_tier = "medium"
         skill = self.MAGIC_SKILLS.get(skill_tier) if skill_tier else None
         if skill and player.mp < skill[1]:
-            return GameResult("魔力不足", f"释放 **{skill[0]}** 需要 {skill[1]} 点魔力。")
+            return GameResult("精神力不足", f"使用 **{skill[0]}** 需要 {skill[1]} 点精神力。")
         base_min = 8 + player.level * 2
         base_max = 12 + player.level * 3
         base_damage = self.rng.randint(base_min, base_max)
@@ -352,14 +352,14 @@ class GameEngine:
                     player.gold_storage_available = True
                     awarded_title = self.adventurer_title(next_star)
                     return GameResult(
-                        "❄️ 百层远征完成",
+                        "❄️ 百层学园探索完成",
                         f"你以{label}造成 **{format_number(damage)}** 点伤害{performance} {formula}，"
                         f"击败 **{enemy.name}**！\n获得 {exp} 经验和 {reward_gold} 金币"
                         f"{bonus_drop}。{equipment_drop}{level_text}\n\n"
                         "你通过了永不下课学园第 **100 层**，获得称号身份组 "
                         f"**{awarded_title}**！\n"
                         "永久属性提升：⚔️ **攻击 +5**｜🛡️ **防御 +3**。\n"
-                        f"下一轮远征提升为 **★{next_star}**；"
+                        f"下一轮探索提升为 **★{next_star}**；"
                         "等级和经验已重置，装备、收藏与永久属性保留。\n"
                         "风雪将你送回了冒险者酒馆。",
                         completed=True,
@@ -384,7 +384,7 @@ class GameEngine:
             if not player.is_alive:
                 return self._die(player, spell_result)
             return GameResult(
-                "🔮 敌方魔法发动！",
+                "🔮 敌方招式发动！",
                 f"你以{label}造成 **{format_number(damage)}** 点伤害{shield_text}{performance} {formula}；\n"
                 f"{spell_result}",
                 True,
@@ -399,10 +399,10 @@ class GameEngine:
         if self.rng.random() < spell_chance:
             enemy.charged_spell = self._spell_name(enemy)
             return GameResult(
-                "⚠️ 敌人正在咏唱！",
+                "⚠️ 敌人正在准备招式！",
                 f"你以{label}造成 **{format_number(damage)}** 点伤害{shield_text}{performance} {formula}。\n"
                 f"**{enemy.name}** 正在准备 **{enemy.charged_spell}**；"
-                "下一次行动将释放魔法！",
+                "下一次行动将发动招式！",
                 True,
             )
 
@@ -565,7 +565,7 @@ class GameEngine:
             player.mp -= drained
             healed = min(enemy.max_hp - enemy.hp, max(1, drained * 2))
             enemy.hp += healed
-            return f"🌍 **板块震荡**夺走 **{drained} 魔力**，并为敌人恢复 **{healed} 生命**。"
+            return f"🌍 **板块震荡**夺走 **{drained} 精神力**，并为敌人恢复 **{healed} 生命**。"
         if spell == "标准答案":
             healed = min(enemy.max_hp - enemy.hp, max(1, enemy.max_hp // 8))
             enemy.hp += healed
@@ -596,13 +596,13 @@ class GameEngine:
         player.hp = round(max(0, player.hp - damage), 2)
         extras = []
         if drained_mp:
-            extras.append(f"魔力 -{drained_mp}")
+            extras.append(f"精神力 -{drained_mp}")
         if drained_energy:
             extras.append(f"精力 -{drained_energy}")
         extra_text = f"，{'、'.join(extras)}" if extras else ""
         return (
-            f"{emoji} **{enemy.name}** 释放 **{spell}**，造成 **{damage} 点魔法伤害**"
-            f"{extra_text}。魔法会穿透大部分防御。"
+            f"{emoji} **{enemy.name}** 发动 **{spell}**，造成 **{damage} 点招式伤害**"
+            f"{extra_text}。招式会穿透大部分防御。"
         )
 
     def interact_event(self, player: Player) -> GameResult:
@@ -634,7 +634,7 @@ class GameEngine:
             player.energy += energy
             return GameResult(
                 "🏥 校医室让你恢复了精神！",
-                f"恢复 **{hp} 体力、{mp} 魔力、{energy} 精力**。",
+                f"恢复 **{hp} 体力、{mp} 精神力、{energy} 精力**。",
             )
         if event == "fairy":
             player.pending_event = None
@@ -1141,7 +1141,7 @@ class GameEngine:
             f"等级、经验和层数已重置；普通道具随机只保留：**{kept_text}**。"
             f"金币由 **{original_gold}** 减少为 **{player.gold}**；"
             "装备、魔法水晶和永久加成保留。\n"
-            "你已恢复为 **Lv.1**，体力、魔力和精力全部补满。",
+            "你已恢复为 **Lv.1**，体力、精神力和精力全部补满。",
             escaped=True,
         )
 
@@ -1189,7 +1189,7 @@ class GameEngine:
             player.energy = min(player.max_energy, player.energy + 12)
             levels += 1
         return (
-            f"\n提升了 {levels} 级，体力 +24、魔力 +10、精力 +12！"
+            f"\n提升了 {levels} 级，体力 +24、精神力 +10、精力 +12！"
             if levels else ""
         )
 
@@ -1308,7 +1308,7 @@ class GameEngine:
             return GameResult("📣 走廊突击检查！", f"失去 **{ambush_damage} 点体力**，**{player.enemy.name}** 拦住了去路！", True)
         if trap == "rune":
             player.mp = round(max(0, player.mp - damage), 2)
-            return GameResult("📝 随堂测验陷阱！", f"试卷抽走了思考能力，失去 **{damage} 点魔力**。", True)
+            return GameResult("📝 随堂测验陷阱！", f"试卷抽走了思考能力，失去 **{damage} 点精神力**。", True)
         if trap == "thief":
             lost = min(player.gold, self.rng.randint(8, 20) * max(1, player.floor))
             player.gold -= lost
@@ -1339,7 +1339,7 @@ class GameEngine:
         return GameResult(
             "🏥 你找到了校医室！",
             f"值班床铺与药柜散发着安心的气息。休息后最多恢复 **{20 + player.floor // 2} 体力、"
-            f"{12 + player.floor // 4} 魔力、14 精力**。",
+            f"{12 + player.floor // 4} 精神力、14 精力**。",
         )
 
     def _event_shop(self, player: Player) -> GameResult:

@@ -5,9 +5,11 @@ from .formatting import format_number
 from .models import Player
 
 
-EQUIPMENT_NAME_RULES_VERSION = 1
+EQUIPMENT_NAME_RULES_VERSION = 2
 
 EQUIPMENT_RENAMES = {
+    "新手短剑": "木制直尺",
+    "布衣": "普通校服",
     "铁制短剑": "铁制直尺",
     "猎风弯刀": "田径接力棒",
     "蓝晶法刃": "蓝晶三角尺",
