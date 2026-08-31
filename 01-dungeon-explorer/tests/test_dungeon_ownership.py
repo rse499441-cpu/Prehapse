@@ -24,6 +24,7 @@ from school_dungeon.game.equipment import (
     migrate_equipment_names as migrate_dungeon_two_equipment,
 )
 from school_dungeon.game.engine import GameEngine as DungeonTwoEngine
+from school_dungeon.game.school_content import SCHOOL_ZONES, monster_names_for_floor
 from school_dungeon.game.shop import ARMORS as DUNGEON_TWO_ARMORS
 from school_dungeon.game.shop import WEAPONS as DUNGEON_TWO_WEAPONS
 from school_dungeon.game.shop import daily_stock as dungeon_two_daily_stock
@@ -178,6 +179,31 @@ class DungeonOwnershipTests(unittest.TestCase):
             [skill[0] for skill in DungeonTwoEngine.MAGIC_SKILLS.values()],
             ["✨ 学识火花", "🔷 灵感光矢", "🌠 真理星雨"],
         )
+
+    def test_all_three_hundred_dungeon_two_enemies_use_school_suffixes(self):
+        expected_suffixes = (
+            ("体育委员", "失控器材", "迟到检查员"),
+            ("活化涂鸦", "异常回声", "石膏像"),
+            ("孢子团", "细胞团", "活化标本"),
+            ("自动地图", "异常气象图", "失控地貌模型"),
+            ("错乱残卷", "活化甲胄模型", "错乱年表"),
+            ("失控试剂", "分子模型", "异常反应"),
+            ("失控仪器", "错误定律", "能量异常"),
+            ("语法错误", "错拼单词", "听力噪音"),
+            ("失控墨迹", "飞散书页", "错误批注"),
+            ("跳动数字", "失控公式", "错误演算"),
+        )
+        self.assertEqual(
+            tuple(zone.monster_forms for zone in SCHOOL_ZONES),
+            expected_suffixes,
+        )
+        names = [
+            name
+            for floor in range(1, 101)
+            for name in monster_names_for_floor(floor)
+        ]
+        self.assertEqual(len(names), 300)
+        self.assertEqual(len(set(names)), 300)
 
     def test_dungeon_two_crystal_pool_names_and_legacy_items_are_migrated(self):
         dungeon_one_names = {item.name for item in DUNGEON_ONE_CRYSTAL_REWARDS}
