@@ -264,7 +264,7 @@ class GameEngine:
         formula = (
             f"（基础 {base_damage} + 武器 {player.weapon_attack}"
             f" + 百层祝福 {format_number(player.completion_bonus('attack'))}"
-            f" + 竞赛加分 {format_number(player.merchant_charm_bonus('attack'))}"
+            f" + 商人护符 {format_number(player.merchant_charm_bonus('attack'))}"
             f" + 水晶护符 {format_number(player.crystal_charm_bonus('attack'))}）"
         )
         enemy.hp = max(0, enemy.hp - damage)
@@ -1251,7 +1251,7 @@ class GameEngine:
         player.merchant_refreshes = 0
         return GameResult(
             "🧳 你遇到了旅行商人！",
-            "推车里的货物每次相遇都会变化：药剂常见，偶尔也会出现竞赛加分、武器或装备。",
+            "推车里的货物每次相遇都会变化：药剂常见，偶尔也会出现护符、武器或装备。",
         )
 
     def _event_fairy(self, player: Player) -> GameResult:
