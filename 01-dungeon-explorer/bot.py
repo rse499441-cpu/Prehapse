@@ -1303,7 +1303,7 @@ class GoldShopPanel(discord.ui.LayoutView):
         stock = daily_stock(today_key())
         container = discord.ui.Container(accent_colour=0xE0A12B)
         container.add_item(discord.ui.Section(
-            "# 🪙 金币商城开张！",
+            "# 🪙 地下城一金币商店",
             "### 只收金币，不收眼泪；买完不退，哭也没用。\n——by **酒馆老板小小秦**",
             accessory=discord.ui.Thumbnail(
                 bot.user.display_avatar.url,
@@ -1328,6 +1328,7 @@ class GoldShopPanel(discord.ui.LayoutView):
             "🍀 **幸运**：每点增加 **0.5% 超常发挥、1.5% 战后额外掉落、"
             "1.5% 真宝箱概率**；宝箱金币每点 +3%，额外药水概率每点 +2%。\n"
             "> 真宝箱基础概率 62.5%，最高 90%；各项概率均有上限，计算结果向下取整。\n"
+            "🏰 **装备归属：地下城一**｜本店武器、护具只能在地下城一装备和使用，不能带入地下城二。\n"
             f"当前金币：🪙 **{player.gold}**｜今日日期：**{today_key()}**\n"
             "可连续选择商品购买；全部买完后，再点击下方的 **返回酒馆**。"
             f"{result_text}"
@@ -1481,7 +1482,8 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             "📊 **单次概率：优良 45%｜稀有 35%｜黄金 17%｜传说 3%**\n"
             "可选择砸 **1 次／5 次／10 次**；多次兑换的每一件奖励独立计算概率。\n"
             "🏰 **探索途中也可以砸水晶**，不会改变当前楼层、战斗或探索进度。\n"
-            "武器和护具会放入 **酒馆装备库**，之后可自由选择穿戴；"
+            "🏰 **奖池归属：地下城一｜女巫的水晶秘藏**。\n"
+            "武器和护具会放入 **地下城一装备库**，只能在地下城一选择穿戴；"
             "护符会直接提供少量永久属性。\n"
             "兑换结果彼此独立，传说装备极其稀有。\n\n"
             f"当前水晶：🔮 **{player.crystals}**\n\n"
@@ -1616,8 +1618,9 @@ class EquipmentLibraryPanel(discord.ui.LayoutView):
         message = f"\n\n> ✅ {result}" if result else ""
         container = discord.ui.Container(accent_colour=0x5378B8)
         container.add_item(discord.ui.TextDisplay(
-            "# 🧰 冒险者装备库\n"
-            "金币商店、旅行商人和水晶兑换获得的武器与护具都会收藏在这里。\n"
+            "# 🧰 地下城一装备库\n"
+            "地下城一金币商店、旅行商人和女巫的水晶秘藏获得的武器与护具都会收藏在这里。\n"
+            "这里的装备只能用于地下城一，不能带入地下城二。\n"
             "同名装备自动去重，不会重复占据下拉栏。\n\n"
             f"当前武器：⚔️ **{player.weapon}**\n"
             f"当前护具：🛡️ **{player.clothing}**\n"
