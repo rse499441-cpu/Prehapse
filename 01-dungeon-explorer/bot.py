@@ -485,13 +485,13 @@ def inventory_embed(player: Player) -> discord.Embed:
             f"最终：攻击加成 **+{display_number(player.attack_bonus)}**｜"
             f"防御 **{display_number(player.defense)}**\n"
             f"敏捷 **{display_number(player.agility)}**｜幸运 **{display_number(player.luck)}**\n"
-            f"竞赛加分：学科 ×{player.merchant_charm_base_stats.get('attack', 0)} "
+            f"商人护符：赤牙 ×{player.merchant_charm_base_stats.get('attack', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('attack'))}**)｜"
-            f"科创 ×{player.merchant_charm_base_stats.get('defense', 0)} "
+            f"石纹 ×{player.merchant_charm_base_stats.get('defense', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('defense'))}**)\n"
-            f"体育 ×{player.merchant_charm_base_stats.get('agility', 0)} "
+            f"风羽 ×{player.merchant_charm_base_stats.get('agility', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('agility'))}**)｜"
-            f"人文 ×{player.merchant_charm_base_stats.get('luck', 0)} "
+            f"四叶 ×{player.merchant_charm_base_stats.get('luck', 0)} "
             f"(**+{display_number(player.merchant_charm_bonus('luck'))}**)\n"
             f"水晶护符（不衰减）：攻击 **+{display_number(player.crystal_charm_bonus('attack'))}**｜"
             f"防御 **+{display_number(player.crystal_charm_bonus('defense'))}**｜"
@@ -569,13 +569,13 @@ def player_panel_text(player: Player, result: GameResult | None) -> tuple[str, s
         f"🪙 **{player.gold}**　🔮 **{player.crystals}**　"
         f"⚔️ **{player.weapon} +{player.weapon_attack}**　👕 **{player.clothing}**\n"
         f"🛡️ 防御 **{display_number(player.defense)}**　💨 敏捷 **{display_number(player.agility)}**　🍀 幸运 **{display_number(player.luck)}**\n"
-        f"🏅 竞赛加分：学科 ×{player.merchant_charm_base_stats.get('attack', 0)} "
+        f"🪬 商人护符：赤牙 ×{player.merchant_charm_base_stats.get('attack', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('attack'))})｜"
-        f"科创 ×{player.merchant_charm_base_stats.get('defense', 0)} "
+        f"石纹 ×{player.merchant_charm_base_stats.get('defense', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('defense'))})｜"
-        f"体育 ×{player.merchant_charm_base_stats.get('agility', 0)} "
+        f"风羽 ×{player.merchant_charm_base_stats.get('agility', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('agility'))})｜"
-        f"人文 ×{player.merchant_charm_base_stats.get('luck', 0)} "
+        f"四叶 ×{player.merchant_charm_base_stats.get('luck', 0)} "
         f"(+{display_number(player.merchant_charm_bonus('luck'))})\n"
         f"💎 水晶护符（不衰减）：攻击 +{display_number(player.crystal_charm_bonus('attack'))}｜"
         f"防御 +{display_number(player.crystal_charm_bonus('defense'))}｜"
@@ -989,9 +989,9 @@ class MerchantPanel(discord.ui.LayoutView):
         message = f"\n\n> {result.message}" if result else ""
         container.add_item(discord.ui.TextDisplay(
             f"# 🧳 旅行商人的移动商店\n"
-            "装备和竞赛加分库存为 1，药剂每格库存为 4。\n"
-            "药剂／竞赛加分售罄：药剂 60%｜竞赛加分 25%｜装备 15%。\n"
-            "装备售罄：只补药剂 70%｜竞赛加分 30%，不会连续补装备。\n"
+            "装备和护符库存为 1，药剂每格库存为 4。\n"
+            "药剂／护符售罄：药剂 60%｜护符 25%｜装备 15%。\n"
+            "装备售罄：只补药剂 70%｜护符 30%，不会连续补装备。\n"
             "也可以支付金币刷新全部四格。\n"
             "售罄补货和付费刷新共享本次相遇的 **5 次总额度**。\n"
             f"当前金币：**{player.gold}**｜刷新：**{player.merchant_refreshes}/5**"
@@ -1357,13 +1357,61 @@ class GoldShopButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction) -> None:
         if await reject_tavern_service(interaction, "金币商店"):
             return
-        player = store.get(interaction.user.id, interaction.user.display_name)
-        shop_image = discord.File(GOLD_SHOP_IMAGE, filename="gold-shop-banner.jpg")
         await interaction.response.send_message(
-            view=GoldShopPanel(interaction.user.id, player),
-            file=shop_image,
+            "🪙 请选择要进入的金币商店。两个商店每日库存与装备归属彼此独立。",
+            view=GoldShopDungeonChoiceView(),
             ephemeral=True,
         )
+
+
+class GoldShopDungeonSelect(discord.ui.Select):
+    def __init__(self):
+        super().__init__(
+            placeholder="选择地下城一或地下城二金币商店……",
+            custom_id="dungeon:gold_shop_choice",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="地下城一金币商店",
+                    value="dungeon_one",
+                    description="幽灯岩窟专属装备与每日库存",
+                    emoji="🕯️",
+                ),
+                discord.SelectOption(
+                    label="地下城二金币商店",
+                    value="dungeon_two",
+                    description="诡异学园专属装备与每日库存",
+                    emoji="🏫",
+                ),
+            ],
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if await reject_tavern_service(interaction, "金币商店"):
+            return
+        if self.values[0] == "dungeon_two":
+            player = school_runtime.store.get(
+                interaction.user.id, interaction.user.display_name,
+            )
+            panel = school_runtime.GoldShopPanel(interaction.user.id, player)
+            image_path = school_runtime.GOLD_SHOP_IMAGE
+        else:
+            player = store.get(interaction.user.id, interaction.user.display_name)
+            panel = GoldShopPanel(interaction.user.id, player)
+            image_path = GOLD_SHOP_IMAGE
+        await interaction.response.defer()
+        await interaction.edit_original_response(
+            content=None,
+            view=panel,
+            attachments=[discord.File(image_path, filename="gold-shop-banner.jpg")],
+        )
+
+
+class GoldShopDungeonChoiceView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.add_item(GoldShopDungeonSelect())
 
 def crystal_rewards_text() -> str:
     lines = []
@@ -1544,14 +1592,63 @@ class CrystalShopButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        player = store.get(interaction.user.id, interaction.user.display_name)
-        kwargs = {"view": CrystalExchangePanel(interaction.user.id, player), "ephemeral": True}
-        if CRYSTAL_SHOP_IMAGE.exists():
-            kwargs["file"] = discord.File(
-                CRYSTAL_SHOP_IMAGE,
-                filename="crystal-exchange-banner.jpg",
+        await interaction.response.send_message(
+            "🔮 请选择要进入的水晶奖池。两个奖池的装备彼此独立。",
+            view=CrystalPoolChoiceView(),
+            ephemeral=True,
+        )
+
+
+class CrystalPoolSelect(discord.ui.Select):
+    def __init__(self):
+        super().__init__(
+            placeholder="选择地下城一或地下城二水晶奖池……",
+            custom_id="dungeon:crystal_pool_choice",
+            min_values=1,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label="女巫的水晶秘藏",
+                    value="dungeon_one",
+                    description="地下城一独立水晶装备池",
+                    emoji="🔮",
+                ),
+                discord.SelectOption(
+                    label="神秘研究社库藏",
+                    value="dungeon_two",
+                    description="地下城二独立水晶装备池",
+                    emoji="🧪",
+                ),
+            ],
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        if self.values[0] == "dungeon_two":
+            player = school_runtime.store.get(
+                interaction.user.id, interaction.user.display_name,
             )
-        await interaction.response.send_message(**kwargs)
+            panel = school_runtime.CrystalExchangePanel(interaction.user.id, player)
+            image_path = school_runtime.CRYSTAL_SHOP_IMAGE
+        else:
+            player = store.get(interaction.user.id, interaction.user.display_name)
+            panel = CrystalExchangePanel(interaction.user.id, player)
+            image_path = CRYSTAL_SHOP_IMAGE
+        attachments = (
+            [discord.File(image_path, filename="crystal-exchange-banner.jpg")]
+            if image_path.exists() else []
+        )
+        await interaction.response.defer()
+        await interaction.edit_original_response(
+            content=None,
+            view=panel,
+            attachments=attachments,
+        )
+
+
+class CrystalPoolChoiceView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.add_item(CrystalPoolSelect())
 
 class EquipmentInventorySelect(discord.ui.Select):
     def __init__(self, player: Player, page: int):
