@@ -46,8 +46,8 @@ class DungeonOwnershipTests(unittest.TestCase):
         project_root = Path(__file__).resolve().parents[1]
         tavern_text = (project_root / "bot.py").read_text(encoding="utf-8")
         for market_name in (
-            "地下城一金币商店",
-            "地下城二金币商店",
+            "幽灯岩窟金币商店",
+            "诡异学园金币商店",
             "女巫的水晶秘藏",
             "神秘研究社库藏",
         ):
@@ -60,6 +60,54 @@ class DungeonOwnershipTests(unittest.TestCase):
         ):
             self.assertIn(route, tavern_text)
         self.assertNotIn("TavernMarketSelect", tavern_text)
+
+    def test_shared_tavern_routes_tasks_equipment_and_profiles_by_dungeon(self):
+        project_root = Path(__file__).resolve().parents[1]
+        tavern_text = (project_root / "bot.py").read_text(encoding="utf-8")
+        for choice_name in (
+            "今日冒险委托",
+            "今日布置作业",
+            "冒险者装备库",
+            "学生物品栏",
+            "冒险者档案",
+            "学生档案",
+        ):
+            self.assertIn(choice_name, tavern_text)
+        for route in (
+            "DailyTaskChoiceView()",
+            "EquipmentCollectionChoiceView()",
+            "ProfileChoiceView()",
+            "school_runtime.daily_quest_embed",
+            "school_runtime.EquipmentLibraryPanel",
+            "school_runtime.inventory_embed",
+        ):
+            self.assertIn(route, tavern_text)
+
+    def test_dungeon_two_uses_student_identity_wording(self):
+        project_root = Path(__file__).resolve().parents[1]
+        dungeon_two_text = "\n".join(
+            (project_root / relative_path).read_text(encoding="utf-8")
+            for relative_path in (
+                "school_dungeon/runtime.py",
+                "school_dungeon/game/engine.py",
+            )
+        )
+        self.assertNotIn("冒险者", dungeon_two_text)
+        for wording in ("学生档案", "学生物品栏", "今日布置作业", "优秀学生"):
+            self.assertIn(wording, dungeon_two_text)
+
+    def test_profiles_equipment_and_crystals_remain_available_during_adventure(self):
+        project_root = Path(__file__).resolve().parents[1]
+        host_text = (project_root / "bot.py").read_text(encoding="utf-8")
+        school_text = (project_root / "school_dungeon/runtime.py").read_text(
+            encoding="utf-8",
+        )
+        blocker = 'reject_tavern_service(interaction, "酒馆角色面板")'
+        self.assertNotIn(blocker, host_text)
+        self.assertNotIn(blocker, school_text)
+        self.assertIn("探索途中也可以砸水晶", host_text)
+        self.assertIn("学园探索途中也可以砸水晶", school_text)
+        self.assertIn("EquipmentCollectionChoiceView()", host_text)
 
     def test_only_gold_and_crystals_are_shared(self):
         with tempfile.TemporaryDirectory() as temp_dir:
