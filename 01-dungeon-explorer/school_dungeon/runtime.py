@@ -633,12 +633,12 @@ def player_panel_text(player: Player, result: GameResult | None) -> tuple[str, s
         f"幸运 +{display_number(player.crystal_charm_bonus('luck'))}｜"
         f"抽取 {player.crystal_charm_draw_count} 次\n"
         f"{fortune_status_text(player)}\n"
-        f"🧪 治疗 **×{player.consumables.get('治疗药水', 0)}**　"
-        f"🧪 强效治疗 **×{player.consumables.get('强效治疗药水', 0)}**　"
-        f"💧 魔力 **×{player.consumables.get('魔力药水', 0)}**　"
-        f"💧 强效魔力 **×{player.consumables.get('强效魔力药水', 0)}**\n"
-        f"⚡ 精力 **×{player.consumables.get('精力药水', 0)}**　"
-        f"⚡ 强效精力 **×{player.consumables.get('强效精力药水', 0)}**\n"
+        f"🥛 学生牛奶 **×{player.consumables.get('学生牛奶', 0)}**　"
+        f"🍱 校园营养餐 **×{player.consumables.get('校园营养餐', 0)}**\n"
+        f"🧴 清凉油 **×{player.consumables.get('清凉油', 0)}**　"
+        f"🍬 强劲薄荷糖 **×{player.consumables.get('强劲薄荷糖', 0)}**\n"
+        f"🥤 运动饮料 **×{player.consumables.get('运动饮料', 0)}**　"
+        f"🧠 安神补脑液 **×{player.consumables.get('安神补脑液', 0)}**\n"
         f"👣 探索 **{player.steps}/{player.required_steps}**\n"
         "-# 探索消耗 3 精力｜互动消耗 2 精力｜超常发挥 ×1.5"
     )
@@ -718,16 +718,16 @@ class DungeonDeclineActions(discord.ui.ActionRow):
 class DungeonUtilities(discord.ui.ActionRow):
     def __init__(self, player: Player):
         buttons = [
-            DungeonActionButton("use_potion", "治疗药水", "🧪", discord.ButtonStyle.success),
-            DungeonActionButton("use_mana_potion", "魔力药水", "💧", discord.ButtonStyle.success),
-            DungeonActionButton("use_energy_potion", "精力药水", "⚡", discord.ButtonStyle.success),
+            DungeonActionButton("use_potion", "体力补给", "🥛", discord.ButtonStyle.success),
+            DungeonActionButton("use_mana_potion", "精神力补给", "🧴", discord.ButtonStyle.success),
+            DungeonActionButton("use_energy_potion", "精力补给", "🥤", discord.ButtonStyle.success),
             DungeonActionButton("refresh", "刷新", "🔄", discord.ButtonStyle.secondary),
         ]
         if (
             not player.enemy
             and player.energy < 3
-            and player.consumables.get("精力药水", 0) <= 0
-            and player.consumables.get("强效精力药水", 0) <= 0
+            and player.consumables.get("运动饮料", 0) <= 0
+            and player.consumables.get("安神补脑液", 0) <= 0
         ):
             buttons.append(DungeonActionButton(
                 "request_rescue",
@@ -822,7 +822,7 @@ class DungeonPanel(discord.ui.LayoutView):
                 "# 🛺 鼹鼠车夫把你送回来了\n"
                 f"{result.message}\n\n"
                 "### 🍺 小小秦说\n"
-                "> “能回来就好。下次出门前，记得检查精力药水。”"
+                "> “能回来就好。下次出门前，记得检查精力补给。”"
             ))
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.ActionRow(ReturnTavernButton()))
@@ -1380,7 +1380,7 @@ class GoldShopPanel(discord.ui.LayoutView):
         stock = daily_stock(today_key())
         container = discord.ui.Container(accent_colour=0xE0A12B)
         container.add_item(discord.ui.Section(
-            "# 🪙 金币商城开张！",
+            "# 🪙 地下城二金币商店",
             "### 只收金币，不收眼泪；买完不退，哭也没用。\n——by **酒馆老板小小秦**",
             accessory=discord.ui.Thumbnail(
                 bot.user.display_avatar.url,
@@ -1403,8 +1403,9 @@ class GoldShopPanel(discord.ui.LayoutView):
             "💨 **敏捷**：每点提供 **1.5% 闪避**（最高 35%）；"
             "随机事件损失再减去 `敏捷 ÷ 2`。\n"
             "🍀 **幸运**：每点增加 **0.5% 超常发挥、1.5% 战后额外掉落、"
-            "1.5% 真宝箱概率**；宝箱金币每点 +3%，额外药水概率每点 +2%。\n"
+            "1.5% 真宝箱概率**；宝箱金币每点 +3%，额外校园补给概率每点 +2%。\n"
             "> 真宝箱基础概率 62.5%，最高 90%；各项概率均有上限，计算结果向下取整。\n"
+            "🏫 **装备归属：地下城二**｜本店武器、护具只能在地下城二装备和使用，不能带入地下城一。\n"
             f"当前金币：🪙 **{player.gold}**｜今日日期：**{today_key()}**\n"
             "可连续选择商品购买；全部买完后，再点击下方的 **返回酒馆**。"
             f"{result_text}"
@@ -1534,9 +1535,9 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             accent_colour=accent_colours.get(result_rarity, 0x7846B8)
         )
         container.add_item(discord.ui.Section(
-            "# 🔮 女巫的水晶秘藏",
+            "# 🔮 神秘研究社库藏",
             "### “水晶会选择自己的主人。至于抽到什么……命运可不接受退货。”\n"
-            "——by **秘藏女巫**",
+            "——by **神秘研究社社长**",
             accessory=discord.ui.Thumbnail(
                 bot.user.display_avatar.url,
                 description="水晶兑换",
@@ -1547,7 +1548,7 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             gallery = discord.ui.MediaGallery()
             gallery.add_item(
                 media="attachment://crystal-exchange-banner.jpg",
-                description="女巫的水晶秘藏",
+                description="神秘研究社库藏",
             )
             container.add_item(gallery)
         container.add_item(discord.ui.Separator())
@@ -1558,7 +1559,8 @@ class CrystalExchangePanel(discord.ui.LayoutView):
             "📊 **单次概率：优良 45%｜稀有 35%｜黄金 17%｜传说 3%**\n"
             "可选择砸 **1 次／5 次／10 次**；多次兑换的每一件奖励独立计算概率。\n"
             "🏫 **学园探索途中也可以砸水晶**，不会改变当前楼层、战斗或探索进度。\n"
-            "武器和护具会放入 **酒馆装备库**，之后可自由选择穿戴；"
+            "🏫 **奖池归属：地下城二｜神秘研究社库藏**。\n"
+            "武器和护具会放入 **地下城二装备库**，只能在地下城二选择穿戴；"
             "护符会直接提供少量永久属性。\n"
             "兑换结果彼此独立，传说装备极其稀有。\n\n"
             f"当前水晶：🔮 **{player.crystals}**\n\n"
@@ -1693,8 +1695,9 @@ class EquipmentLibraryPanel(discord.ui.LayoutView):
         message = f"\n\n> ✅ {result}" if result else ""
         container = discord.ui.Container(accent_colour=0x5378B8)
         container.add_item(discord.ui.TextDisplay(
-            "# 🧰 冒险者装备库\n"
-            "金币商店、旅行商人和水晶兑换获得的武器与护具都会收藏在这里。\n"
+            "# 🧰 地下城二装备库\n"
+            "地下城二金币商店、校园小卖部老板和神秘研究社库藏获得的武器与护具都会收藏在这里。\n"
+            "这里的装备只能用于地下城二，不能带入地下城一。\n"
             "同名装备自动去重，不会重复占据下拉栏。\n\n"
             f"当前武器：⚔️ **{player.weapon}**\n"
             f"当前护具：🛡️ **{player.clothing}**\n"
