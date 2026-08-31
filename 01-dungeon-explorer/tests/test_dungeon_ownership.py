@@ -32,6 +32,35 @@ from school_dungeon.game.storage import PlayerStore as DungeonTwoStore
 
 
 class DungeonOwnershipTests(unittest.TestCase):
+    def test_dungeon_one_never_uses_school_competition_bonus_wording(self):
+        project_root = Path(__file__).resolve().parents[1]
+        dungeon_one_text = "\n".join(
+            (project_root / relative_path).read_text(encoding="utf-8")
+            for relative_path in ("bot.py", "game/engine.py")
+        )
+        self.assertNotIn("竞赛加分", dungeon_one_text)
+        for charm_name in ("赤牙", "石纹", "风羽", "四叶"):
+            self.assertIn(charm_name, dungeon_one_text)
+
+    def test_shared_tavern_uses_two_stage_shop_and_crystal_selection(self):
+        project_root = Path(__file__).resolve().parents[1]
+        tavern_text = (project_root / "bot.py").read_text(encoding="utf-8")
+        for market_name in (
+            "地下城一金币商店",
+            "地下城二金币商店",
+            "女巫的水晶秘藏",
+            "神秘研究社库藏",
+        ):
+            self.assertIn(market_name, tavern_text)
+        for route in (
+            "GoldShopDungeonChoiceView()",
+            "CrystalPoolChoiceView()",
+            "school_runtime.GoldShopPanel",
+            "school_runtime.CrystalExchangePanel",
+        ):
+            self.assertIn(route, tavern_text)
+        self.assertNotIn("TavernMarketSelect", tavern_text)
+
     def test_only_gold_and_crystals_are_shared(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             dungeon_one_path = Path(temp_dir) / "dungeon-one.db"
