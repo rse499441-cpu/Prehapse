@@ -20,6 +20,10 @@ from school_dungeon.game.crystal import (
     migrate_crystal_reward_names,
 )
 from school_dungeon.game.models import Player as DungeonTwoPlayer
+from school_dungeon.game.equipment import (
+    migrate_equipment_names as migrate_dungeon_two_equipment,
+)
+from school_dungeon.game.engine import GameEngine as DungeonTwoEngine
 from school_dungeon.game.shop import ARMORS as DUNGEON_TWO_ARMORS
 from school_dungeon.game.shop import WEAPONS as DUNGEON_TWO_WEAPONS
 from school_dungeon.game.shop import daily_stock as dungeon_two_daily_stock
@@ -139,6 +143,41 @@ class DungeonOwnershipTests(unittest.TestCase):
         self.assertEqual(player.weapon, "铁制短剑")
         self.assertIn("铁制短剑", player.equipment_inventory)
         self.assertNotIn("铁制直尺", player.equipment_inventory)
+
+    def test_dungeon_two_starter_equipment_is_school_themed_and_migrated(self):
+        new_player = DungeonTwoPlayer(5, "新生")
+        self.assertEqual(new_player.weapon, "木制直尺")
+        self.assertEqual(new_player.clothing, "普通校服")
+
+        old_player = DungeonTwoPlayer(6, "老玩家")
+        old_player.weapon = "新手短剑"
+        old_player.clothing = "布衣"
+        old_player.equipment_inventory = {
+            "新手短剑": {
+                "name": "新手短剑", "category": "武器", "rarity": "普通",
+                "attack": 4, "defense": 0, "agility": 0, "luck": 0,
+            },
+            "布衣": {
+                "name": "布衣", "category": "护具", "rarity": "普通",
+                "attack": 0, "defense": 1, "agility": 0, "luck": 0,
+            },
+        }
+        old_player.equipment_name_rules_version = 1
+
+        migrate_dungeon_two_equipment(old_player)
+
+        self.assertEqual(old_player.weapon, "木制直尺")
+        self.assertEqual(old_player.clothing, "普通校服")
+        self.assertIn("木制直尺", old_player.equipment_inventory)
+        self.assertIn("普通校服", old_player.equipment_inventory)
+        self.assertNotIn("新手短剑", old_player.equipment_inventory)
+        self.assertNotIn("布衣", old_player.equipment_inventory)
+
+    def test_dungeon_two_student_adventurer_skills_use_school_names(self):
+        self.assertEqual(
+            [skill[0] for skill in DungeonTwoEngine.MAGIC_SKILLS.values()],
+            ["✨ 学识火花", "🔷 灵感光矢", "🌠 真理星雨"],
+        )
 
     def test_dungeon_two_crystal_pool_names_and_legacy_items_are_migrated(self):
         dungeon_one_names = {item.name for item in DUNGEON_ONE_CRYSTAL_REWARDS}
