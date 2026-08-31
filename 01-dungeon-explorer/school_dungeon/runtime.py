@@ -128,12 +128,12 @@ def sync_player_fortune(player: Player, guild_id: int | None) -> int:
 
 def fortune_status_text(player: Player) -> str:
     if player.daily_fortune_score <= 0:
-        return "🪷 今日尚未问卦｜精灵水晶概率增长 **0%**"
+        return "🪷 今日尚未问卦｜新生谢礼水晶概率增长 **0%**"
     if player.daily_fortune_growth <= 0:
         return f"🪷 今日总运 **{player.daily_fortune_score}/100**｜卦气平稳"
     return (
         f"🪷 今日总运 **{player.daily_fortune_score}/100**｜"
-        f"精灵与藏宝图水晶概率增长 **{player.daily_fortune_growth:.0%}**"
+        f"新生谢礼与藏宝图水晶概率增长 **{player.daily_fortune_growth:.0%}**"
     )
 
 
@@ -347,41 +347,41 @@ def completion_celebration_copy(completion_count: int) -> tuple[str, str]:
             "这是百层通关的勋章和奖励。下次再接再厉吧，"
             "我会一直关注你的。”\n"
             "——by **酒馆老板小小秦** 🥂❄️",
-            "🎊 第一次百层远征完成，新的传说从酒馆开始！",
+            "🎊 第一次百层学园探索完成，新的传说从酒馆开始！",
         )
     if completion_count == 2:
         return (
             "### “第二次从王座走回来了？看来第一次并不是运气。\n"
             "收下这枚更明亮的冰晶吧——从今天起，大家会记住你的名字。”\n"
             "——by **酒馆老板小小秦** 🥂🧊",
-            "✨ 第二次百层远征完成，你已晋升为二星冒险者！",
+            "✨ 第二次百层学园探索完成，你已晋升为二星冒险者！",
         )
     if completion_count == 3:
         return (
             "### “三次踏过同一场风雪，还能带着笑回来……真了不起。\n"
             "幽灯岩窟已经无法埋没你的光芒，这份三星荣誉属于你。”\n"
             "——by **酒馆老板小小秦** 🥂💠",
-            "💠 第三次百层远征完成，你的冒险传说愈发耀眼！",
+            "💠 第三次百层学园探索完成，你的冒险传说愈发耀眼！",
         )
     if completion_count == 4:
         return (
             "### “第四次百层凯旋。现在，就连岩窟深处的怪物也会畏惧你的脚步。\n"
             "接下这枚深蓝勋章吧——距离真正的冒险者，只差最后一次证明。”\n"
             "——by **酒馆老板小小秦** 🥂🌊",
-            "🌊 第四次百层远征完成，最终晋升试炼已经开启！",
+            "🌊 第四次百层学园探索完成，最终晋升试炼已经开启！",
         )
     if completion_count == 5:
         return (
-            "### “五次百层远征，五次平安归来。你已经不再是追逐传说的人——\n"
+            "### “五次百层学园探索，五次平安归来。你已经不再是追逐传说的人——\n"
             "从这一刻起，你就是传说本身。欢迎回来，初级冒险者。”\n"
             "——by **酒馆老板小小秦** 🥂🏅",
-            "🏅 第五次百层远征完成，正式晋升为初级冒险者！",
+            "🏅 第五次百层学园探索完成，正式晋升为初级冒险者！",
         )
     return (
         f"### “第 {completion_count} 次凯旋，酒馆的灯依然为你亮着。\n"
         "真正的冒险没有终点——欢迎回来，冒险者。”\n"
         "——by **酒馆老板小小秦** 🥂❄️",
-        f"❄️ 第 {completion_count} 次百层远征完成，新的征途仍在继续！",
+        f"❄️ 第 {completion_count} 次百层学园探索完成，新的征途仍在继续！",
     )
 
 
@@ -499,7 +499,7 @@ def inventory_embed(player: Player) -> discord.Embed:
     embed = discord.Embed(
         title=f"🎒 {player.name} 的冒险者档案",
         description=(
-            f"远征难度 **★{player.completion_count}**　"
+            f"探索难度 **★{player.completion_count}**　"
             f"**Lv.{player.level}**　EXP **{player.exp}/{player.exp_required}**\n"
             f"当前位于 **第 {player.floor} 层**　探索 **{player.steps}/{player.required_steps}**"
         ),
@@ -607,11 +607,11 @@ def player_panel_text(player: Player, result: GameResult | None) -> tuple[str, s
         event += f"\n\n## {event_section(title, False)}"
     status = (
         f"## 🧙 冒险者｜{player.name}\n"
-        f"远征难度 **★{player.completion_count}**　"
+        f"探索难度 **★{player.completion_count}**　"
         f"**Lv.{player.level}**　EXP **{player.exp}/{player.exp_required}**　"
         f"🗡️ 攻击 **{8 + player.level * 2}～{12 + player.level * 3} "
         f"+ {display_number(player.attack_bonus)}**\n"
-        "🔮 星火弹 **×1.20/6MP**　月辉矢 **×1.50/12MP**　奥术流星 **×1.85/22MP**\n"
+        "🔮 学识火花 **×1.20/6精神力**　灵感光矢 **×1.50/12精神力**　真理星雨 **×1.85/22精神力**\n"
         f"❤️ `{bar(player.hp, player.max_hp)}` **{display_number(player.hp)}/{display_number(player.max_hp)}**\n"
         f"💧 `{bar(player.mp, player.max_mp)}` **{display_number(player.mp)}/{display_number(player.max_mp)}**\n"
         f"⚡ `{bar(player.energy, player.max_energy)}` **{display_number(player.energy)}/{display_number(player.max_energy)}**\n\n"
@@ -674,9 +674,9 @@ class DungeonActions(discord.ui.ActionRow):
         elif player.enemy:
             buttons.extend([
                 DungeonActionButton("attack", "普通攻击", "⚔️", discord.ButtonStyle.danger),
-                DungeonActionButton("skill_minor", "星火弹·6MP", "✨", discord.ButtonStyle.primary),
-                DungeonActionButton("skill_medium", "月辉矢·12MP", "🔷", discord.ButtonStyle.primary),
-                DungeonActionButton("skill_major", "奥术流星·22MP", "🌠", discord.ButtonStyle.danger),
+                DungeonActionButton("skill_minor", "学识火花·6精神力", "✨", discord.ButtonStyle.primary),
+                DungeonActionButton("skill_medium", "灵感光矢·12精神力", "🔷", discord.ButtonStyle.primary),
+                DungeonActionButton("skill_major", "真理星雨·22精神力", "🌠", discord.ButtonStyle.danger),
             ])
         elif not player.pending_event:
             buttons.append(DungeonActionButton("explore", "继续探索", "👣", discord.ButtonStyle.primary))
@@ -776,7 +776,7 @@ class DungeonPanel(discord.ui.LayoutView):
             )
             coloured_title = result.role_mention or f"**{title_name}**"
             container.add_item(discord.ui.Section(
-                "# 🎉❄️ 百层远征完成！❄️🎉",
+                "# 🎉❄️ 百层学园探索完成！❄️🎉",
                 celebration_quote,
                 accessory=discord.ui.Thumbnail(
                     avatar_url,
@@ -839,7 +839,7 @@ class DungeonPanel(discord.ui.LayoutView):
                 "随后以 **Lv.1**、全状态补满，直接返回酒馆。\n\n"
                 "## 方案二｜向女神祈祷：不返回酒馆\n"
                 "🙏 放弃当前 **全部等级和经验**，以 **Lv.1** 回到地下城第 **1 层**。\n"
-                "金币、装备和道具全部保留，体力、魔力和精力全部补满。\n\n"
+                "金币、装备和道具全部保留，体力、精神力和精力全部补满。\n\n"
                 "⚠️ 两种选择确认后都不能撤销，请仔细选择。"
             ))
             container.add_item(discord.ui.Separator())
@@ -1398,7 +1398,7 @@ class GoldShopPanel(discord.ui.LayoutView):
         result_text = f"\n\n> {result}" if result else ""
         container.add_item(discord.ui.TextDisplay(
             "## 📖 属性怎么算？\n"
-            "⚔️ **攻击**：直接加进每次普通攻击和魔法伤害。\n"
+            "⚔️ **攻击**：直接加进每次普通攻击和招式伤害。\n"
             "🛡️ **防御**：怪物反击伤害 − 防御；随机事件还会额外减去 `防御 ÷ 3`。\n"
             "💨 **敏捷**：每点提供 **1.5% 闪避**（最高 35%）；"
             "随机事件损失再减去 `敏捷 ÷ 2`。\n"
@@ -2040,7 +2040,7 @@ async def adventurer_title(interaction: discord.Interaction) -> None:
         )
         return
     await interaction.response.send_message(
-        f"你已完成 **{player.completion_count}** 次百层远征。"
+        f"你已完成 **{player.completion_count}** 次百层学园探索。"
         "请选择想要展示的称号颜色：",
         view=AdventurerTitleView(player),
         ephemeral=True,
@@ -2076,7 +2076,7 @@ async def set_challenge_ranking_channel(interaction: discord.Interaction) -> Non
     discord.app_commands.Choice(name="宝箱怪（先伪装）", value="mimic"),
     discord.app_commands.Choice(name="宁静泉水", value="fountain"),
     discord.app_commands.Choice(name="旅行商人", value="merchant"),
-    discord.app_commands.Choice(name="受伤的精灵", value="fairy"),
+    discord.app_commands.Choice(name="忘带作业的新生", value="fairy"),
     discord.app_commands.Choice(name="神秘石像", value="mystery"),
     discord.app_commands.Choice(name="藏宝图", value="treasure_map"),
     discord.app_commands.Choice(name="受困妖兽", value="trapped_beast"),
