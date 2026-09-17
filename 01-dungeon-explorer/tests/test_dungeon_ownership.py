@@ -282,6 +282,27 @@ class DungeonOwnershipTests(unittest.TestCase):
         self.assertEqual(len(names), 300)
         self.assertEqual(len(set(names)), 300)
 
+    def test_dungeon_two_assets_include_every_floor_and_entry_banner(self):
+        project_root = Path(__file__).resolve().parents[1]
+        asset_root = project_root / "school_dungeon" / "assets"
+        floor_root = asset_root / "floors"
+        expected_floors = {
+            f"floor-{floor:03d}.webp" for floor in range(1, 101)
+        }
+        actual_floors = {
+            path.name for path in floor_root.glob("floor-*.webp")
+        }
+        self.assertEqual(actual_floors, expected_floors)
+        for filename in (
+            "adventurer-tavern-chibi-hq.jpg",
+            "crystal-exchange-banner.jpg",
+            "school-entrance.png",
+            "gold-shop-banner.jpg",
+        ):
+            asset_path = asset_root / filename
+            self.assertTrue(asset_path.is_file(), filename)
+            self.assertGreater(asset_path.stat().st_size, 0, filename)
+
     def test_dungeon_two_crystal_pool_names_and_legacy_items_are_migrated(self):
         dungeon_one_names = {item.name for item in DUNGEON_ONE_CRYSTAL_REWARDS}
         dungeon_two_names = {item.name for item in DUNGEON_TWO_CRYSTAL_REWARDS}
